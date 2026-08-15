@@ -1,0 +1,15 @@
+services:
+  api:
+    build:
+      context: .
+      target: development
+    env_file:
+      - path: .env
+        required: false
+    init: true
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./app:/code/app
+      - ./test:/code/test
+      - ./pyproject.toml:/code/pyproject.toml:ro
