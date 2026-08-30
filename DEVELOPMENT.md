@@ -141,3 +141,21 @@ uvicorn app.main:app --reload
 `.env.example` contiene los nombres de las variables necesarias. Cada integrante
 debe copiarlo como `.env` y completar solamente valores locales. El archivo `.env`
 no se sube al repositorio y nunca debe contener credenciales compartidas por Git.
+
+Para acceder a la capa Gold se requieren:
+
+- `AZURE_STORAGE_ACCOUNT_URL`: URL HTTPS de la cuenta de almacenamiento.
+- `AZURE_STORAGE_CONTAINER`: nombre del contenedor, actualmente `gold`.
+- `AZURE_STORAGE_SAS_TOKEN`: SAS de contenedor con permisos de lectura y listado.
+
+El token SAS es un secreto: no debe copiarse al código, documentación, commits ni
+mensajes del equipo. Para verificar la conexión y leer un Parquet real:
+
+```bash
+docker compose build api
+docker compose run --rm -e RUN_AZURE_INTEGRATION_TESTS=true api \
+  python -m pytest -m azure --no-cov
+```
+
+La prueba de Azure está deshabilitada por defecto, por lo que los controles locales
+y el CI no necesitan credenciales.
