@@ -7,6 +7,9 @@ select = ["B", "E", "F", "I", "UP"]
 
 [tool.pytest.ini_options]
 testpaths = ["test"]
+markers = [
+    "azure: prueba de integración que requiere credenciales de Azure Storage",
+]
 addopts = [
     "--strict-markers",
     "--cov=app",
