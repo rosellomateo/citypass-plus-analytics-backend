@@ -37,11 +37,7 @@ class AzureBlobStorage:
 
     def list_folders(self) -> list[str]:
         items = self._client.walk_blobs(name_starts_with=None, delimiter="/")
-        return sorted(
-            item.name.removesuffix("/")
-            for item in items
-            if isinstance(item, BlobPrefix)
-        )
+        return sorted(item.name.removesuffix("/") for item in items if isinstance(item, BlobPrefix))
 
     def list_parquet_blobs(self, prefix: str | None = None) -> list[str]:
         folder_prefix = f"{prefix.strip('/')}/" if prefix else None
