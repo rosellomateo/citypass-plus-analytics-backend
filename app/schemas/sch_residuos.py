@@ -28,8 +28,8 @@ class RespuestaAnaliticaResiduos(BaseModel):
     # Indicadores
     total_recolectado_toneladas: float
     cantidad_contenedores_criticos: int
-    tasa_recoleccion: float | None
-    tiempo_promedio_vaciado: float | None
+    tasa_recoleccion: float
+    tiempo_promedio_vaciado: float
 
     # Gráficos y tabla
     contenedores_por_estado: list[ContenedoresPorEstado]

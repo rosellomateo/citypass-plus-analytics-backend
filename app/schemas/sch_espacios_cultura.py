@@ -16,15 +16,15 @@ class InscripcionesPorEvento(BaseModel):
     titulo_evento: str
     inscriptos: int
     capacidad: int
-    porcentaje_ocupacion: float | None
+    porcentaje_ocupacion: float
 
 
 class RespuestaAnaliticaEspaciosCultura(BaseModel):
     # Indicadores
     reservas_confirmadas: int
     reservas_canceladas: int
-    tasa_cancelacion_porcentaje: float | None
-    ocupacion_promedio_porcentaje: float | None
+    tasa_cancelacion_porcentaje: float
+    ocupacion_promedio_porcentaje: float
 
     # Gráficos y tabla
     reservas_por_espacio: list[ReservasPorEspacio]

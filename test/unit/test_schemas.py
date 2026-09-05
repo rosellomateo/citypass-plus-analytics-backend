@@ -42,7 +42,7 @@ def test_validates_espacios_cultura_response() -> None:
         reservas_confirmadas=120,
         reservas_canceladas=15,
         tasa_cancelacion_porcentaje=11.11,
-        ocupacion_promedio_porcentaje=None,
+        ocupacion_promedio_porcentaje=75.0,
         reservas_por_espacio=[
             ReservasPorEspacio(espacio="Teatro Municipal", confirmadas=80, canceladas=10)
         ],
@@ -57,7 +57,6 @@ def test_validates_espacios_cultura_response() -> None:
         ],
     )
 
-    assert response.ocupacion_promedio_porcentaje is None
     assert response.reservas_por_espacio[0].espacio == "Teatro Municipal"
     assert response.inscripciones_por_evento[0].model_dump() == {
         "titulo_evento": "Festival de Jazz",
@@ -122,7 +121,7 @@ def test_validates_residuos_response() -> None:
     response = RespuestaAnaliticaResiduos(
         total_recolectado_toneladas=42.5,
         cantidad_contenedores_criticos=3,
-        tasa_recoleccion=None,
+        tasa_recoleccion=90.0,
         tiempo_promedio_vaciado=5.75,
         contenedores_por_estado=[ContenedoresPorEstado(estado="critico", cantidad=3)],
         volumen_por_tipo_residuo=[VolumenPorTipoResiduo(tipo_residuo="organico", toneladas=18.25)],
@@ -137,8 +136,6 @@ def test_validates_residuos_response() -> None:
             )
         ],
     )
-
-    assert response.tasa_recoleccion is None
     assert response.volumen_por_tipo_residuo[0].toneladas == 18.25
     assert response.detalle_contenedores_criticos[0].id_contenedor == "cont-10"
 
