@@ -14,7 +14,7 @@ def obtener_analitica_reclamos():
     # Datos temporales para probar la estructura de la respuesta.
     return RespuestaAnaliticaReclamos(
         total_reclamos=0,
-        tiempo_promedio_resolucion_horas=None,
+        tiempo_promedio_resolucion_horas=0.0,
         reclamos_por_categoria=[],
         reclamos_por_estado=[],
         tiempo_resolucion_categoria=[],

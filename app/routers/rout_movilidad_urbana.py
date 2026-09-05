@@ -13,7 +13,7 @@ def obtener_analitica_movilidad():
 
     return RespuestaAnaliticaMovilidad(
         total_viajes_iniciados=0,
-        duracion_promedio_viaje_minutos=None,
+        duracion_promedio_viaje_minutos=0.0,
         viajes_por_estacion_origen=[],
         viajes_por_franja_horaria=[],
         distribucion_duracion_viajes=[],

@@ -16,7 +16,7 @@ class InscripcionesPorEvento(BaseModel):
     titulo_evento: str
     inscriptos: int
     capacidad: int
-    porcentaje_ocupacion: float | None
+    porcentaje_ocupacion: float
 
 
 class RespuestaAnaliticaEspaciosCultura(BaseModel):

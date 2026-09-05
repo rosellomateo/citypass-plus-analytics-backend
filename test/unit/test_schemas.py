@@ -57,7 +57,6 @@ def test_validates_espacios_cultura_response() -> None:
         ],
     )
 
-    assert response.ocupacion_promedio_porcentaje is None
     assert response.reservas_por_espacio[0].espacio == "Teatro Municipal"
     assert response.inscripciones_por_evento[0].model_dump() == {
         "titulo_evento": "Festival de Jazz",
@@ -137,8 +136,6 @@ def test_validates_residuos_response() -> None:
             )
         ],
     )
-
-    assert response.tasa_recoleccion is None
     assert response.volumen_por_tipo_residuo[0].toneladas == 18.25
     assert response.detalle_contenedores_criticos[0].id_contenedor == "cont-10"
 

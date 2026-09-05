@@ -38,7 +38,7 @@ def client(monkeypatch: pytest.MonkeyPatch):
                 "total_emergencias": 0,
                 "emergencias_activas": 0,
                 "emergencias_cerradas": 0,
-                "tiempo_promedio_despacho_minutos": 0.0,
+                "tiempo_promedio_despacho": 0.0,
                 "emergencias_por_estado": [],
                 "emergencias_por_prioridad": [],
                 "despacho_por_prioridad": [],
