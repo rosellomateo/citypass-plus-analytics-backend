@@ -81,9 +81,7 @@ def client(monkeypatch: pytest.MonkeyPatch):
         ),
     ],
 )
-def test_analytics_returns_placeholder_json(
-    client: TestClient, path: str, expected: dict
-) -> None:
+def test_analytics_returns_placeholder_json(client: TestClient, path: str, expected: dict) -> None:
     response = client.get(path)
 
     assert response.status_code == 200
@@ -119,14 +117,10 @@ def test_event_returns_serializable_utc_datetime(client: TestClient) -> None:
         ("/analytics/seguridad-emergencias", "RespuestaAnaliticaSeguridadEmergencias"),
     ],
 )
-def test_openapi_declares_response_contract(
-    client: TestClient, path: str, schema: str
-) -> None:
+def test_openapi_declares_response_contract(client: TestClient, path: str, schema: str) -> None:
     response = client.get("/openapi.json")
 
     assert response.status_code == 200
     operation = response.json()["paths"][path]["get"]
-    response_schema = operation["responses"]["200"]["content"]["application/json"][
-        "schema"
-    ]
+    response_schema = operation["responses"]["200"]["content"]["application/json"]["schema"]
     assert response_schema["$ref"] == f"#/components/schemas/{schema}"

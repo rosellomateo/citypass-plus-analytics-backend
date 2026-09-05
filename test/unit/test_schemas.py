@@ -44,13 +44,9 @@ def test_validates_espacios_cultura_response() -> None:
         tasa_cancelacion_porcentaje=11.11,
         ocupacion_promedio_porcentaje=75.0,
         reservas_por_espacio=[
-            ReservasPorEspacio(
-                espacio="Teatro Municipal", confirmadas=80, canceladas=10
-            )
+            ReservasPorEspacio(espacio="Teatro Municipal", confirmadas=80, canceladas=10)
         ],
-        inscripciones_por_categoria=[
-            InscripcionesPorCategoria(categoria="Musica", cantidad=65)
-        ],
+        inscripciones_por_categoria=[InscripcionesPorCategoria(categoria="Musica", cantidad=65)],
         inscripciones_por_evento=[
             InscripcionesPorEvento(
                 titulo_evento="Festival de Jazz",
@@ -94,9 +90,7 @@ def test_validates_movilidad_response() -> None:
         viajes_por_estacion_origen=[
             ViajesPorEstacionOrigen(estacion="Terminal Norte", cantidad=125)
         ],
-        viajes_por_franja_horaria=[
-            ViajesPorFranjaHoraria(franja="08:00-12:00", cantidad=180)
-        ],
+        viajes_por_franja_horaria=[ViajesPorFranjaHoraria(franja="08:00-12:00", cantidad=180)],
         distribucion_duracion_viajes=[
             DistribucionDuracionViajes(rango="0-15 minutos", cantidad=95)
         ],
@@ -111,13 +105,9 @@ def test_validates_reclamos_response() -> None:
     response = RespuestaAnaliticaReclamos(
         total_reclamos=75,
         tiempo_promedio_resolucion_horas=None,
-        reclamos_por_categoria=[
-            ReclamosPorCategoria(categoria="Alumbrado", cantidad=30)
-        ],
+        reclamos_por_categoria=[ReclamosPorCategoria(categoria="Alumbrado", cantidad=30)],
         reclamos_por_estado=[ReclamosPorEstado(estado="resuelto", cantidad=52)],
-        tiempo_resolucion_categoria=[
-            TiempoPromedioCategoria(categoria="Alumbrado", horas=None)
-        ],
+        tiempo_resolucion_categoria=[TiempoPromedioCategoria(categoria="Alumbrado", horas=None)],
     )
 
     assert response.tiempo_promedio_resolucion_horas is None
@@ -135,12 +125,8 @@ def test_validates_residuos_response() -> None:
         tasa_recoleccion=90.0,
         tiempo_promedio_vaciado=5.75,
         contenedores_por_estado=[ContenedoresPorEstado(estado="critico", cantidad=3)],
-        volumen_por_tipo_residuo=[
-            VolumenPorTipoResiduo(tipo_residuo="organico", toneladas=18.25)
-        ],
-        tiempo_vaciado_por_zona=[
-            TiempoPromedioVaciadoPorZona(zona="centro", horas=None)
-        ],
+        volumen_por_tipo_residuo=[VolumenPorTipoResiduo(tipo_residuo="organico", toneladas=18.25)],
+        tiempo_vaciado_por_zona=[TiempoPromedioVaciadoPorZona(zona="centro", horas=None)],
         detalle_contenedores_criticos=[
             DetalleContenedorCritico(
                 id_contenedor="cont-10",
@@ -164,9 +150,7 @@ def test_validates_seguridad_emergencias_response() -> None:
         emergencias_cerradas=32,
         tiempo_promedio_despacho=7.5,
         emergencias_por_estado=[EmergenciasPorEstado(estado="activa", cantidad=8)],
-        emergencias_por_prioridad=[
-            EmergenciasPorPrioridad(prioridad="alta", cantidad=12)
-        ],
+        emergencias_por_prioridad=[EmergenciasPorPrioridad(prioridad="alta", cantidad=12)],
         despacho_por_prioridad=[DespachoPorPrioridad(prioridad="alta", minutos=None)],
     )
 
