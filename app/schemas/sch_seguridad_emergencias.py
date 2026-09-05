@@ -21,7 +21,7 @@ class RespuestaAnaliticaSeguridadEmergencias(BaseModel):
     total_emergencias: int
     emergencias_activas: int
     emergencias_cerradas: int
-    tiempo_promedio_despacho: float # En minutos
+    tiempo_promedio_despacho: float  # En minutos
 
     # Gráficos
     emergencias_por_estado: list[EmergenciasPorEstado]

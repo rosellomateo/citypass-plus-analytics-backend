@@ -11,7 +11,7 @@ class ReclamosPorEstado(BaseModel):
     cantidad: int
 
 
-class TiempoPromedioCategoria(BaseModel): # Tiempo promedio de resolucion por categoria
+class TiempoPromedioCategoria(BaseModel):  # Tiempo promedio de resolucion por categoria
     categoria: str
     horas: float | None
 
