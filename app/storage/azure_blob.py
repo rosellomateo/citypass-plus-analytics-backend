@@ -1,13 +1,20 @@
 from types import TracebackType
 from typing import Protocol, Self
 
-from azure.storage.blob import ContainerClient
+from azure.storage.blob import BlobPrefix, ContainerClient
 
 from app.core.config import AzureStorageSettings
 
 
 class _ContainerClient(Protocol):
     def list_blobs(self, *, name_starts_with: str | None = None) -> object: ...
+
+    def walk_blobs(
+        self,
+        *,
+        name_starts_with: str | None = None,
+        delimiter: str = "/",
+    ) -> object: ...
 
     def get_blob_client(self, blob: str) -> object: ...
 
@@ -28,8 +35,13 @@ class AzureBlobStorage:
             credential=settings.sas_token,
         )
 
+    def list_folders(self) -> list[str]:
+        items = self._client.walk_blobs(name_starts_with=None, delimiter="/")
+        return sorted(item.name.removesuffix("/") for item in items if isinstance(item, BlobPrefix))
+
     def list_parquet_blobs(self, prefix: str | None = None) -> list[str]:
-        blobs = self._client.list_blobs(name_starts_with=prefix)
+        folder_prefix = f"{prefix.strip('/')}/" if prefix else None
+        blobs = self._client.list_blobs(name_starts_with=folder_prefix)
         names = (blob.name for blob in blobs)
         return sorted(name for name in names if name.lower().endswith(".parquet"))
 

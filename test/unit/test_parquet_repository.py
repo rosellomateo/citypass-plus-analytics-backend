@@ -6,7 +6,18 @@ import polars as pl
 from app.repositories.parquet_repository import AzureParquetRepository
 
 
-def test_lists_datasets_with_prefix() -> None:
+def test_lists_folders() -> None:
+    storage = MagicMock()
+    storage.list_folders.return_value = ["Emergencia y Seguridad", "Reclamos"]
+    repository = AzureParquetRepository(storage)
+
+    result = repository.list_folders()
+
+    assert result == ["Emergencia y Seguridad", "Reclamos"]
+    storage.list_folders.assert_called_once_with()
+
+
+def test_lists_datasets_from_folder() -> None:
     storage = MagicMock()
     storage.list_parquet_blobs.return_value = ["Reclamos/data.parquet"]
     repository = AzureParquetRepository(storage)
