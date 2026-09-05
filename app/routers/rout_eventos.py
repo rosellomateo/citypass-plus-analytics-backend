@@ -13,7 +13,6 @@ router = APIRouter(
 @router.get("", response_model=RespuestaAnaliticaEventos)
 def obtener_evento():
 
-    
     # Evento temporal para probar el schema.
     return RespuestaAnaliticaEventos(
         id_evento="evento-prueba-001",

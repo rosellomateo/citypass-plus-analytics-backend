@@ -11,7 +11,6 @@ router = APIRouter(
 @router.get("", response_model=RespuestaAnaliticaEspaciosCultura)
 def obtener_analitica_espacios_cultura():
 
-    
     return RespuestaAnaliticaEspaciosCultura(
         reservas_confirmadas=0,
         reservas_canceladas=0,

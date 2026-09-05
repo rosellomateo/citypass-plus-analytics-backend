@@ -4,8 +4,9 @@ from app.routers.rout_eventos import router as eventos_router
 from app.routers.rout_movilidad_urbana import router as movilidad_urbana_router
 from app.routers.rout_reclamos import router as reclamos_router
 from app.routers.rout_residuos import router as residuos_router
-from app.routers.rout_seguridad_emergencias import router as seguridad_emergencias_router
-
+from app.routers.rout_seguridad_emergencias import (
+    router as seguridad_emergencias_router,
+)
 
 app = FastAPI(
     title="CityPass+ Analytics API",

@@ -10,7 +10,7 @@ router = APIRouter(
 
 @router.get("", response_model=RespuestaAnaliticaMovilidad)
 def obtener_analitica_movilidad():
-    
+
     return RespuestaAnaliticaMovilidad(
         total_viajes_iniciados=0,
         duracion_promedio_viaje_minutos=None,

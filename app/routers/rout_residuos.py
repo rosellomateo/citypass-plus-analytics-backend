@@ -11,7 +11,6 @@ router = APIRouter(
 @router.get("", response_model=RespuestaAnaliticaResiduos)
 def obtener_analitica_residuos():
 
-    
     return RespuestaAnaliticaResiduos(
         total_recolectado_toneladas=0.0,
         cantidad_contenedores_criticos=0,

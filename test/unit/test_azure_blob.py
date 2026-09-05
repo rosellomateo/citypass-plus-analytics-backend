@@ -63,7 +63,9 @@ def test_accepts_folder_with_separators() -> None:
 
 def test_downloads_blob_and_closes_client() -> None:
     client = MagicMock()
-    client.get_blob_client.return_value.download_blob.return_value.readall.return_value = b"data"
+    client.get_blob_client.return_value.download_blob.return_value.readall.return_value = (
+        b"data"
+    )
 
     with AzureBlobStorage(make_settings(), container_client=client) as storage:
         result = storage.download_blob("Reclamos/data.parquet")

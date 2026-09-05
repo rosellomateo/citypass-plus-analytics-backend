@@ -4,7 +4,9 @@ from app.core.config import AzureStorageSettings, ConfigurationError
 
 
 def test_loads_azure_storage_settings(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("AZURE_STORAGE_ACCOUNT_URL", "https://storage.blob.core.windows.net/")
+    monkeypatch.setenv(
+        "AZURE_STORAGE_ACCOUNT_URL", "https://storage.blob.core.windows.net/"
+    )
     monkeypatch.setenv("AZURE_STORAGE_CONTAINER", "gold")
     monkeypatch.setenv("AZURE_STORAGE_SAS_TOKEN", "?sp=rl&sig=secret")
 
@@ -29,7 +31,9 @@ def test_reports_missing_environment_variables(monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_rejects_non_https_account_url(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("AZURE_STORAGE_ACCOUNT_URL", "http://storage.blob.core.windows.net")
+    monkeypatch.setenv(
+        "AZURE_STORAGE_ACCOUNT_URL", "http://storage.blob.core.windows.net"
+    )
     monkeypatch.setenv("AZURE_STORAGE_CONTAINER", "gold")
     monkeypatch.setenv("AZURE_STORAGE_SAS_TOKEN", "sp=rl&sig=secret")
 
