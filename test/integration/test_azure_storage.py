@@ -18,7 +18,14 @@ def test_can_list_and_read_a_gold_parquet() -> None:
 
     with AzureBlobStorage(settings) as storage:
         repository = AzureParquetRepository(storage)
-        blobs = repository.list_datasets()
+        folders = repository.list_folders()
+        assert folders, "No se encontraron carpetas en el contenedor Gold"
+
+        blobs = [
+            blob
+            for folder in folders
+            for blob in repository.list_datasets(folder)
+        ]
         assert blobs, "No se encontraron archivos Parquet en el contenedor Gold"
 
         frame = repository.read(blobs[0])
