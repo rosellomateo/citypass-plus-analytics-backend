@@ -1,32 +1,17 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
-class ReservasPorEspacio(BaseModel):
-    espacio: str
-    confirmadas: int
-    canceladas: int
-
-
-class InscripcionesPorCategoria(BaseModel):
-    categoria: str
-    cantidad: int
-
-
-class InscripcionesPorEvento(BaseModel):
-    titulo_evento: str
-    inscriptos: int
-    capacidad: int
-    porcentaje_ocupacion: float
-
-
-class RespuestaAnaliticaEspaciosCultura(BaseModel):
-    # Indicadores
-    reservas_confirmadas: int
-    reservas_canceladas: int
-    tasa_cancelacion_porcentaje: float
-    ocupacion_promedio_porcentaje: float
-
-    # Gráficos y tabla
-    reservas_por_espacio: list[ReservasPorEspacio]
-    inscripciones_por_categoria: list[InscripcionesPorCategoria]
-    inscripciones_por_evento: list[InscripcionesPorEvento]
+class EspacioCultura(BaseModel):
+    recursoId: str | None
+    tipoReserva: str | None
+    categoria: str | None
+    zona: str | None
+    cupoMaximo: float | None
+    cantidadTotal: int | None
+    cantidadConfirmadas: int | None
+    cantidadCanceladas: int | None
+    inscriptos: int | None
+    pctOcupacion: float | None
+    fecha_snapshot: datetime | None

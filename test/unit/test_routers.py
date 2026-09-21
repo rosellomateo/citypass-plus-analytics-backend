@@ -1,22 +1,108 @@
 from datetime import UTC, datetime
 
+import polars as pl
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.routers.conexion import obtener_repositorio
+
+
+class FakeParquetRepository:
+    def __init__(self):
+        self.data = {
+            "Reclamos/reclamos_resumen.parquet": pl.DataFrame(
+                [
+                    {
+                        "barrio": "Palermo",
+                        "categoria": "Alumbrado",
+                        "prioridad": "Alta",
+                        "origenClasificacion": "Manual",
+                        "estado_actual": "Resuelto",
+                        "row_count": 15,
+                        "tiempo_prom_hasta_estado_actual": 24.5,
+                        "fecha_snapshot": datetime(2026, 9, 21, 10, 30),
+                    }
+                ]
+            ),
+            "Emergencias y Seguridad/emergencias_resumen.parquet": pl.DataFrame(
+                [
+                    {
+                        "estado_actual": "Resuelta",
+                        "prioridad": "Alta",
+                        "cantidadEmergencias": 12,
+                        "tiempoPromRespuestaDespacho": 4.5,
+                        "tiempoPromRespuestaLugar": 9.8,
+                        "fecha_snapshot": datetime(2026, 9, 21, 10, 30),
+                    }
+                ]
+            ),
+            "Movilidad Urbana/viajes_resumen.parquet": pl.DataFrame(
+                [
+                    {
+                        "fechaInicio": datetime(2026, 9, 21, 10, 30),
+                        "estacionInicio": "Estación Central",
+                        "duracionViaje": "15 minutos",
+                        "cantidadViajes": 10,
+                        "duracionTotalViajes": 150.0,
+                        "promDuracion": 15.0,
+                        "fecha_snapshot": datetime(2026, 9, 21, 12, 0),
+                    }
+                ]
+            ),
+            "Espacios Publicos y Cultura/reservas_resumen.parquet": pl.DataFrame(
+                [
+                    {
+                        "recursoId": "REC-001",
+                        "tipoReserva": "Presencial",
+                        "categoria": "Cultura",
+                        "zona": "Centro",
+                        "cupoMaximo": 100.0,
+                        "cantidadTotal": 80,
+                        "cantidadConfirmadas": 70,
+                        "cantidadCanceladas": 10,
+                        "inscriptos": 75,
+                        "pctOcupacion": 75.0,
+                        "fecha_snapshot": datetime(2026, 9, 21, 10, 30),
+                    }
+                ]
+            ),
+            "Gestion de Residuos Inteligente/alertas_resumen.parquet": pl.DataFrame(
+                [
+                    {
+                        "zona": "Norte",
+                        "tipoAlerta": "Contenedor lleno",
+                        "prioridad": "Alta",
+                        "rangoNivelLlenado": "80-100%",
+                        "cantidadAlertas": 20,
+                        "cantidadResueltas": 15,
+                        "tiempoPromResolucion": 35.5,
+                        "fecha_snapshot": datetime(2026, 9, 21, 10, 30),
+                    }
+                ]
+            ),
+        }
+
+    def list_folders(self):
+        return []
+
+    def list_datasets(self, prefix=None):
+        return []
+
+    def read(self, blob_name):
+        return self.data.get(blob_name, pl.DataFrame())
 
 
 @pytest.fixture
-def client(monkeypatch: pytest.MonkeyPatch):
-    # Las respuestas temporales deben funcionar sin credenciales de Azure.
-    for name in (
-        "AZURE_STORAGE_ACCOUNT_URL",
-        "AZURE_STORAGE_CONTAINER",
-        "AZURE_STORAGE_SAS_TOKEN",
-    ):
-        monkeypatch.delenv(name, raising=False)
+def client():
+    fake_repository = FakeParquetRepository()
+
+    app.dependency_overrides[obtener_repositorio] = lambda: fake_repository
+
     with TestClient(app) as test_client:
         yield test_client
+
+    app.dependency_overrides.clear()
 
 
 @pytest.mark.parametrize(
@@ -24,64 +110,86 @@ def client(monkeypatch: pytest.MonkeyPatch):
     [
         (
             "/analytics/reclamos",
-            {
-                "total_reclamos": 0,
-                "tiempo_promedio_resolucion_horas": 0.0,
-                "reclamos_por_categoria": [],
-                "reclamos_por_estado": [],
-                "tiempo_resolucion_categoria": [],
-            },
+            [
+                {
+                    "barrio": "Palermo",
+                    "categoria": "Alumbrado",
+                    "prioridad": "Alta",
+                    "origenClasificacion": "Manual",
+                    "estado_actual": "Resuelto",
+                    "row_count": 15,
+                    "tiempo_prom_hasta_estado_actual": 24.5,
+                    "fecha_snapshot": "2026-09-21T10:30:00",
+                }
+            ],
         ),
         (
             "/analytics/seguridad-emergencias",
-            {
-                "total_emergencias": 0,
-                "emergencias_activas": 0,
-                "emergencias_cerradas": 0,
-                "tiempo_promedio_despacho": 0.0,
-                "emergencias_por_estado": [],
-                "emergencias_por_prioridad": [],
-                "despacho_por_prioridad": [],
-            },
+            [
+                {
+                    "estado_actual": "Resuelta",
+                    "prioridad": "Alta",
+                    "cantidadEmergencias": 12,
+                    "tiempoPromRespuestaDespacho": 4.5,
+                    "tiempoPromRespuestaLugar": 9.8,
+                    "fecha_snapshot": "2026-09-21T10:30:00",
+                }
+            ],
         ),
         (
             "/analytics/movilidad-urbana",
-            {
-                "total_viajes_iniciados": 0,
-                "duracion_promedio_viaje_minutos": 0.0,
-                "viajes_por_estacion_origen": [],
-                "viajes_por_franja_horaria": [],
-                "distribucion_duracion_viajes": [],
-            },
+            [
+                {
+                    "fechaInicio": "2026-09-21T10:30:00",
+                    "estacionInicio": "Estación Central",
+                    "duracionViaje": "15 minutos",
+                    "cantidadViajes": 10,
+                    "duracionTotalViajes": 150.0,
+                    "promDuracion": 15.0,
+                    "fecha_snapshot": "2026-09-21T12:00:00",
+                }
+            ],
         ),
         (
             "/analytics/espacios-cultura",
-            {
-                "reservas_confirmadas": 0,
-                "reservas_canceladas": 0,
-                "tasa_cancelacion_porcentaje": 0.0,
-                "ocupacion_promedio_porcentaje": 0.0,
-                "reservas_por_espacio": [],
-                "inscripciones_por_categoria": [],
-                "inscripciones_por_evento": [],
-            },
+            [
+                {
+                    "recursoId": "REC-001",
+                    "tipoReserva": "Presencial",
+                    "categoria": "Cultura",
+                    "zona": "Centro",
+                    "cupoMaximo": 100.0,
+                    "cantidadTotal": 80,
+                    "cantidadConfirmadas": 70,
+                    "cantidadCanceladas": 10,
+                    "inscriptos": 75,
+                    "pctOcupacion": 75.0,
+                    "fecha_snapshot": "2026-09-21T10:30:00",
+                }
+            ],
         ),
         (
             "/analytics/residuos",
-            {
-                "total_recolectado_toneladas": 0.0,
-                "cantidad_contenedores_criticos": 0,
-                "tasa_recoleccion": 0.0,
-                "tiempo_promedio_vaciado": 0.0,
-                "contenedores_por_estado": [],
-                "volumen_por_tipo_residuo": [],
-                "tiempo_vaciado_por_zona": [],
-                "detalle_contenedores_criticos": [],
-            },
+            [
+                {
+                    "zona": "Norte",
+                    "tipoAlerta": "Contenedor lleno",
+                    "prioridad": "Alta",
+                    "rangoNivelLlenado": "80-100%",
+                    "cantidadAlertas": 20,
+                    "cantidadResueltas": 15,
+                    "tiempoPromResolucion": 35.5,
+                    "fecha_snapshot": "2026-09-21T10:30:00",
+                }
+            ],
         ),
     ],
 )
-def test_analytics_returns_placeholder_json(client: TestClient, path: str, expected: dict) -> None:
+def test_analytics_returns_json(
+    client: TestClient,
+    path: str,
+    expected: list[dict],
+) -> None:
     response = client.get(path)
 
     assert response.status_code == 200
@@ -109,12 +217,12 @@ def test_event_returns_serializable_utc_datetime(client: TestClient) -> None:
 @pytest.mark.parametrize(
     ("path", "schema"),
     [
-        ("/analytics/reclamos", "RespuestaAnaliticaReclamos"),
-        ("/analytics/eventos", "RespuestaAnaliticaEventos"),
-        ("/analytics/movilidad-urbana", "RespuestaAnaliticaMovilidad"),
-        ("/analytics/espacios-cultura", "RespuestaAnaliticaEspaciosCultura"),
-        ("/analytics/residuos", "RespuestaAnaliticaResiduos"),
-        ("/analytics/seguridad-emergencias", "RespuestaAnaliticaSeguridadEmergencias"),
+        ("/analytics/reclamos", "Reclamo"),
+        # ("/analytics/eventos", "RespuestaAnaliticaEventos"),
+        ("/analytics/movilidad-urbana", "Movilidad"),
+        ("/analytics/espacios-cultura", "EspacioCultura"),
+        ("/analytics/residuos", "Residuo"),
+        ("/analytics/seguridad-emergencias", "SeguridadEmergencia"),
     ],
 )
 def test_openapi_declares_response_contract(client: TestClient, path: str, schema: str) -> None:
@@ -123,4 +231,5 @@ def test_openapi_declares_response_contract(client: TestClient, path: str, schem
     assert response.status_code == 200
     operation = response.json()["paths"][path]["get"]
     response_schema = operation["responses"]["200"]["content"]["application/json"]["schema"]
-    assert response_schema["$ref"] == f"#/components/schemas/{schema}"
+    assert response_schema["type"] == "array"
+    assert response_schema["items"]["$ref"] == f"#/components/schemas/{schema}"

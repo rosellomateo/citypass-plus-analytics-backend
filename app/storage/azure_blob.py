@@ -22,8 +22,6 @@ class _ContainerClient(Protocol):
 
 
 class AzureBlobStorage:
-    """Read-only access to the Gold container in Azure Blob Storage."""
-
     def __init__(
         self,
         settings: AzureStorageSettings,
