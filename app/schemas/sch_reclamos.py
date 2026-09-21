@@ -1,27 +1,14 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
-class ReclamosPorCategoria(BaseModel):
-    categoria: str
-    cantidad: int
-
-
-class ReclamosPorEstado(BaseModel):
-    estado: str
-    cantidad: int
-
-
-class TiempoPromedioCategoria(BaseModel):  # Tiempo promedio de resolucion por categoria
-    categoria: str
-    horas: float | None
-
-
-class RespuestaAnaliticaReclamos(BaseModel):
-    # Indicadores
-    total_reclamos: int
-    tiempo_promedio_resolucion_horas: float | None
-
-    # Gráficos
-    reclamos_por_categoria: list[ReclamosPorCategoria]
-    reclamos_por_estado: list[ReclamosPorEstado]
-    tiempo_resolucion_categoria: list[TiempoPromedioCategoria]
+class Reclamo(BaseModel):
+    barrio: str | None
+    categoria: str | None
+    prioridad: str | None
+    origenClasificacion: str | None
+    estado_actual: str | None
+    row_count: int | None
+    tiempo_prom_hasta_estado_actual: float | None
+    fecha_snapshot: datetime | None

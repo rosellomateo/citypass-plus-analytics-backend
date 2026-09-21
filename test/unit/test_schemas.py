@@ -1,177 +1,165 @@
-from datetime import UTC, datetime
+from datetime import datetime
 
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from app.schemas.sch_espacios_cultura import (
-    InscripcionesPorCategoria,
-    InscripcionesPorEvento,
-    ReservasPorEspacio,
-    RespuestaAnaliticaEspaciosCultura,
-)
+from app.schemas.sch_espacios_cultura import EspacioCultura
 from app.schemas.sch_eventos import RespuestaAnaliticaEventos
-from app.schemas.sch_movilidad_urbana import (
-    DistribucionDuracionViajes,
-    RespuestaAnaliticaMovilidad,
-    ViajesPorEstacionOrigen,
-    ViajesPorFranjaHoraria,
-)
-from app.schemas.sch_reclamos import (
-    ReclamosPorCategoria,
-    ReclamosPorEstado,
-    RespuestaAnaliticaReclamos,
-    TiempoPromedioCategoria,
-)
-from app.schemas.sch_residuos import (
-    ContenedoresPorEstado,
-    DetalleContenedorCritico,
-    RespuestaAnaliticaResiduos,
-    TiempoPromedioVaciadoPorZona,
-    VolumenPorTipoResiduo,
-)
-from app.schemas.sch_seguridad_emergencias import (
-    DespachoPorPrioridad,
-    EmergenciasPorEstado,
-    EmergenciasPorPrioridad,
-    RespuestaAnaliticaSeguridadEmergencias,
-)
+from app.schemas.sch_movilidad_urbana import Movilidad
+from app.schemas.sch_reclamos import Reclamo
+from app.schemas.sch_residuos import Residuo
+from app.schemas.sch_seguridad_emergencias import SeguridadEmergencia
 
 
 def test_validates_espacios_cultura_response() -> None:
-    response = RespuestaAnaliticaEspaciosCultura(
-        reservas_confirmadas=120,
-        reservas_canceladas=15,
-        tasa_cancelacion_porcentaje=11.11,
-        ocupacion_promedio_porcentaje=75.0,
-        reservas_por_espacio=[
-            ReservasPorEspacio(espacio="Teatro Municipal", confirmadas=80, canceladas=10)
-        ],
-        inscripciones_por_categoria=[InscripcionesPorCategoria(categoria="Musica", cantidad=65)],
-        inscripciones_por_evento=[
-            InscripcionesPorEvento(
-                titulo_evento="Festival de Jazz",
-                inscriptos=90,
-                capacidad=100,
-                porcentaje_ocupacion=90.0,
-            )
-        ],
+    fecha = datetime(2026, 9, 21, 10, 30)
+
+    espacio = EspacioCultura(
+        recursoId="REC-001",
+        tipoReserva="Presencial",
+        categoria="Cultura",
+        zona="Centro",
+        cupoMaximo=100.0,
+        cantidadTotal=80,
+        cantidadConfirmadas=70,
+        cantidadCanceladas=10,
+        inscriptos=75,
+        pctOcupacion=75.0,
+        fecha_snapshot=fecha,
     )
 
-    assert response.reservas_por_espacio[0].espacio == "Teatro Municipal"
-    assert response.inscripciones_por_evento[0].model_dump() == {
-        "titulo_evento": "Festival de Jazz",
-        "inscriptos": 90,
-        "capacidad": 100,
-        "porcentaje_ocupacion": 90.0,
-    }
+    assert espacio.recursoId == "REC-001"
+    assert espacio.tipoReserva == "Presencial"
+    assert espacio.categoria == "Cultura"
+    assert espacio.zona == "Centro"
+    assert espacio.cupoMaximo == 100.0
+    assert espacio.cantidadTotal == 80
+    assert espacio.cantidadConfirmadas == 70
+    assert espacio.cantidadCanceladas == 10
+    assert espacio.inscriptos == 75
+    assert espacio.pctOcupacion == 75.0
+    assert espacio.fecha_snapshot == fecha
 
 
 def test_validates_eventos_response() -> None:
-    occurred_at = datetime(2026, 9, 5, 14, 30, tzinfo=UTC)
+    fecha = datetime(2026, 9, 21, 10, 30)
 
-    response = RespuestaAnaliticaEventos(
-        id_evento="evt-123",
-        tipo_evento="reclamo_creado",
-        fecha_hora=occurred_at,
-        area="reclamos",
+    evento = RespuestaAnaliticaEventos(
+        id_evento="EVT-001",
+        tipo_evento="CREACION",
+        fecha_hora=fecha,
+        area="Movilidad",
         version="1.0",
-        id_correlacion="corr-456",
+        id_correlacion="CORR-001",
     )
 
-    assert response.fecha_hora == occurred_at
-    assert response.model_dump()["id_correlacion"] == "corr-456"
+    assert evento.id_evento == "EVT-001"
+    assert evento.tipo_evento == "CREACION"
+    assert evento.fecha_hora == fecha
+    assert evento.area == "Movilidad"
+    assert evento.version == "1.0"
+    assert evento.id_correlacion == "CORR-001"
 
 
 def test_validates_movilidad_response() -> None:
-    response = RespuestaAnaliticaMovilidad(
-        total_viajes_iniciados=350,
-        duracion_promedio_viaje_minutos=None,
-        viajes_por_estacion_origen=[
-            ViajesPorEstacionOrigen(estacion="Terminal Norte", cantidad=125)
-        ],
-        viajes_por_franja_horaria=[ViajesPorFranjaHoraria(franja="08:00-12:00", cantidad=180)],
-        distribucion_duracion_viajes=[
-            DistribucionDuracionViajes(rango="0-15 minutos", cantidad=95)
-        ],
+    movilidad = Movilidad(
+        fechaInicio=datetime(2026, 9, 21, 10, 30),
+        estacionInicio="Estación Central",
+        duracionViaje="15 minutos",
+        cantidadViajes=10,
+        duracionTotalViajes=150.0,
+        promDuracion=15.0,
+        fecha_snapshot=datetime(2026, 9, 21, 12, 0),
     )
 
-    assert response.duracion_promedio_viaje_minutos is None
-    assert response.viajes_por_estacion_origen[0].cantidad == 125
-    assert response.distribucion_duracion_viajes[0].rango == "0-15 minutos"
+    assert movilidad.fechaInicio == datetime(2026, 9, 21, 10, 30)
+    assert movilidad.estacionInicio == "Estación Central"
+    assert movilidad.duracionViaje == "15 minutos"
+    assert movilidad.cantidadViajes == 10
+    assert movilidad.duracionTotalViajes == 150.0
+    assert movilidad.promDuracion == 15.0
+    assert movilidad.fecha_snapshot == datetime(2026, 9, 21, 12, 0)
 
 
 def test_validates_reclamos_response() -> None:
-    response = RespuestaAnaliticaReclamos(
-        total_reclamos=75,
-        tiempo_promedio_resolucion_horas=None,
-        reclamos_por_categoria=[ReclamosPorCategoria(categoria="Alumbrado", cantidad=30)],
-        reclamos_por_estado=[ReclamosPorEstado(estado="resuelto", cantidad=52)],
-        tiempo_resolucion_categoria=[TiempoPromedioCategoria(categoria="Alumbrado", horas=None)],
+    fecha = datetime(2026, 9, 21, 10, 30)
+
+    reclamo = Reclamo(
+        barrio="Palermo",
+        categoria="Alumbrado",
+        prioridad="Alta",
+        origenClasificacion="Manual",
+        estado_actual="Resuelto",
+        row_count=15,
+        tiempo_prom_hasta_estado_actual=24.5,
+        fecha_snapshot=fecha,
     )
 
-    assert response.tiempo_promedio_resolucion_horas is None
-    assert response.reclamos_por_categoria[0].model_dump() == {
-        "categoria": "Alumbrado",
-        "cantidad": 30,
-    }
-    assert response.tiempo_resolucion_categoria[0].horas is None
+    assert reclamo.barrio == "Palermo"
+    assert reclamo.categoria == "Alumbrado"
+    assert reclamo.prioridad == "Alta"
+    assert reclamo.origenClasificacion == "Manual"
+    assert reclamo.estado_actual == "Resuelto"
+    assert reclamo.row_count == 15
+    assert reclamo.tiempo_prom_hasta_estado_actual == 24.5
+    assert reclamo.fecha_snapshot == fecha
 
 
 def test_validates_residuos_response() -> None:
-    response = RespuestaAnaliticaResiduos(
-        total_recolectado_toneladas=42.5,
-        cantidad_contenedores_criticos=3,
-        tasa_recoleccion=90.0,
-        tiempo_promedio_vaciado=5.75,
-        contenedores_por_estado=[ContenedoresPorEstado(estado="critico", cantidad=3)],
-        volumen_por_tipo_residuo=[VolumenPorTipoResiduo(tipo_residuo="organico", toneladas=18.25)],
-        tiempo_vaciado_por_zona=[TiempoPromedioVaciadoPorZona(zona="centro", horas=None)],
-        detalle_contenedores_criticos=[
-            DetalleContenedorCritico(
-                id_contenedor="cont-10",
-                zona="centro",
-                tipo_residuo="organico",
-                porcentaje_llenado=98.5,
-                horas_desbordado=2.0,
-            )
-        ],
+    fecha = datetime(2026, 9, 21, 10, 30)
+
+    residuo = Residuo(
+        zona="Norte",
+        tipoAlerta="Contenedor lleno",
+        prioridad="Alta",
+        rangoNivelLlenado="80-100%",
+        cantidadAlertas=20,
+        cantidadResueltas=15,
+        tiempoPromResolucion=35.5,
+        fecha_snapshot=fecha,
     )
-    assert response.volumen_por_tipo_residuo[0].toneladas == 18.25
-    assert response.detalle_contenedores_criticos[0].id_contenedor == "cont-10"
+
+    assert residuo.zona == "Norte"
+    assert residuo.tipoAlerta == "Contenedor lleno"
+    assert residuo.prioridad == "Alta"
+    assert residuo.rangoNivelLlenado == "80-100%"
+    assert residuo.cantidadAlertas == 20
+    assert residuo.cantidadResueltas == 15
+    assert residuo.tiempoPromResolucion == 35.5
+    assert residuo.fecha_snapshot == fecha
 
 
 def test_validates_seguridad_emergencias_response() -> None:
-    response = RespuestaAnaliticaSeguridadEmergencias(
-        total_emergencias=40,
-        emergencias_activas=8,
-        emergencias_cerradas=32,
-        tiempo_promedio_despacho=7.5,
-        emergencias_por_estado=[EmergenciasPorEstado(estado="activa", cantidad=8)],
-        emergencias_por_prioridad=[EmergenciasPorPrioridad(prioridad="alta", cantidad=12)],
-        despacho_por_prioridad=[DespachoPorPrioridad(prioridad="alta", minutos=None)],
+    fecha = datetime(2026, 9, 21, 10, 30)
+
+    emergencia = SeguridadEmergencia(
+        estado_actual="Resuelta",
+        prioridad="Alta",
+        cantidadEmergencias=12,
+        tiempoPromRespuestaDespacho=4.5,
+        tiempoPromRespuestaLugar=9.8,
+        fecha_snapshot=fecha,
     )
 
-    assert response.emergencias_activas == 8
-    assert response.despacho_por_prioridad[0].minutos is None
-    assert response.model_dump()["tiempo_promedio_despacho"] == 7.5
+    assert emergencia.estado_actual == "Resuelta"
+    assert emergencia.prioridad == "Alta"
+    assert emergencia.cantidadEmergencias == 12
+    assert emergencia.tiempoPromRespuestaDespacho == 4.5
+    assert emergencia.tiempoPromRespuestaLugar == 9.8
+    assert emergencia.fecha_snapshot == fecha
 
 
 @pytest.mark.parametrize(
     "schema",
     [
-        RespuestaAnaliticaEspaciosCultura,
+        EspacioCultura,
         RespuestaAnaliticaEventos,
-        RespuestaAnaliticaMovilidad,
-        RespuestaAnaliticaReclamos,
-        RespuestaAnaliticaResiduos,
-        RespuestaAnaliticaSeguridadEmergencias,
+        Movilidad,
+        Reclamo,
+        Residuo,
+        SeguridadEmergencia,
     ],
 )
 def test_rejects_responses_without_required_fields(schema: type[BaseModel]) -> None:
     with pytest.raises(ValidationError):
         schema.model_validate({})
-
-
-def test_rejects_invalid_numeric_values() -> None:
-    with pytest.raises(ValidationError):
-        ReclamosPorCategoria(categoria="Alumbrado", cantidad="muchos")

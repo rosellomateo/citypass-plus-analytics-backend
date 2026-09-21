@@ -1,8 +1,11 @@
-from fastapi import APIRouter
+from typing import Annotated
 
-from app.schemas.sch_seguridad_emergencias import (
-    RespuestaAnaliticaSeguridadEmergencias,
-)
+from fastapi import APIRouter, Depends
+
+from app.repositories.parquet_repository import AzureParquetRepository
+from app.routers.conexion import obtener_repositorio
+from app.schemas.sch_seguridad_emergencias import SeguridadEmergencia
+from app.services.seguridad_emergencias_service import obtener_analitica_emergencias
 
 router = APIRouter(
     prefix="/analytics/seguridad-emergencias",
@@ -10,15 +13,8 @@ router = APIRouter(
 )
 
 
-@router.get("", response_model=RespuestaAnaliticaSeguridadEmergencias)
-def obtener_analitica_seguridad_emergencias():
-
-    return RespuestaAnaliticaSeguridadEmergencias(
-        total_emergencias=0,
-        emergencias_activas=0,
-        emergencias_cerradas=0,
-        tiempo_promedio_despacho=0.0,
-        emergencias_por_estado=[],
-        emergencias_por_prioridad=[],
-        despacho_por_prioridad=[],
-    )
+@router.get("", response_model=list[SeguridadEmergencia])
+# En el parametro del def se le dice a FastApi "devolveme un objeto de tipo AzureParquetRepository,
+# al ejecutar esta función"
+def listar_reclamos(repositorio: Annotated[AzureParquetRepository, Depends(obtener_repositorio)]):
+    return obtener_analitica_emergencias(repositorio)

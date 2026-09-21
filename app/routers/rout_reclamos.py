@@ -1,6 +1,11 @@
-from fastapi import APIRouter
+from typing import Annotated
 
-from app.schemas.sch_reclamos import RespuestaAnaliticaReclamos
+from fastapi import APIRouter, Depends
+
+from app.repositories.parquet_repository import AzureParquetRepository
+from app.routers.conexion import obtener_repositorio
+from app.schemas.sch_reclamos import Reclamo
+from app.services.reclamos_service import obtener_analitica_reclamos
 
 router = APIRouter(
     prefix="/analytics/reclamos",
@@ -8,14 +13,8 @@ router = APIRouter(
 )
 
 
-@router.get("", response_model=RespuestaAnaliticaReclamos)
-def obtener_analitica_reclamos():
-
-    # Datos temporales para probar la estructura de la respuesta.
-    return RespuestaAnaliticaReclamos(
-        total_reclamos=0,
-        tiempo_promedio_resolucion_horas=0.0,
-        reclamos_por_categoria=[],
-        reclamos_por_estado=[],
-        tiempo_resolucion_categoria=[],
-    )
+@router.get("", response_model=list[Reclamo])
+# En el parametro del def se le dice a FastApi "devolveme un objeto de tipo AzureParquetRepository,
+# al ejecutar esta funión"
+def listar_reclamos(repositorio: Annotated[AzureParquetRepository, Depends(obtener_repositorio)]):
+    return obtener_analitica_reclamos(repositorio)

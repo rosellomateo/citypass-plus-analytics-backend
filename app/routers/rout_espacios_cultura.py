@@ -1,6 +1,11 @@
-from fastapi import APIRouter
+from typing import Annotated
 
-from app.schemas.sch_espacios_cultura import RespuestaAnaliticaEspaciosCultura
+from fastapi import APIRouter, Depends
+
+from app.repositories.parquet_repository import AzureParquetRepository
+from app.routers.conexion import obtener_repositorio
+from app.schemas.sch_espacios_cultura import EspacioCultura
+from app.services.espacios_cultura_service import obtener_analitica_espacios
 
 router = APIRouter(
     prefix="/analytics/espacios-cultura",
@@ -8,15 +13,8 @@ router = APIRouter(
 )
 
 
-@router.get("", response_model=RespuestaAnaliticaEspaciosCultura)
-def obtener_analitica_espacios_cultura():
-
-    return RespuestaAnaliticaEspaciosCultura(
-        reservas_confirmadas=0,
-        reservas_canceladas=0,
-        tasa_cancelacion_porcentaje=0.0,
-        ocupacion_promedio_porcentaje=0.0,
-        reservas_por_espacio=[],
-        inscripciones_por_categoria=[],
-        inscripciones_por_evento=[],
-    )
+@router.get("", response_model=list[EspacioCultura])
+# En el parametro del def se le dice a FastApi "devolveme un objeto de tipo AzureParquetRepository,
+# al ejecutar esta funión"
+def listar_reclamos(repositorio: Annotated[AzureParquetRepository, Depends(obtener_repositorio)]):
+    return obtener_analitica_espacios(repositorio)
