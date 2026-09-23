@@ -1,6 +1,46 @@
 import pytest
 
-from app.core.config import AzureStorageSettings, ConfigurationError
+from app.core.config import AzureStorageSettings, ConfigurationError, CorsSettings
+
+
+def test_cors_settings_use_local_frontend_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CORS_ALLOWED_ORIGINS", raising=False)
+
+    settings = CorsSettings.from_environment()
+
+    assert settings.allowed_origins == ("http://localhost:5173",)
+
+
+def test_cors_settings_parse_multiple_unique_origins(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:5173, https://analytics.example.com/,http://localhost:5173",
+    )
+
+    settings = CorsSettings.from_environment()
+
+    assert settings.allowed_origins == (
+        "http://localhost:5173",
+        "https://analytics.example.com",
+    )
+
+
+@pytest.mark.parametrize(
+    "origins",
+    (
+        "*",
+        "analytics.example.com",
+        "https://analytics.example.com/path",
+    ),
+)
+def test_cors_settings_reject_invalid_origins(
+    monkeypatch: pytest.MonkeyPatch,
+    origins: str,
+) -> None:
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", origins)
+
+    with pytest.raises(ConfigurationError):
+        CorsSettings.from_environment()
 
 
 def test_loads_azure_storage_settings(monkeypatch: pytest.MonkeyPatch) -> None:
