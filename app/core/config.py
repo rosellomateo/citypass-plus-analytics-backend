@@ -8,6 +8,40 @@ class ConfigurationError(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
+class CorsSettings:
+    allowed_origins: tuple[str, ...]
+
+    @classmethod
+    def from_environment(cls) -> "CorsSettings":
+        raw_origins = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
+        origins = tuple(
+            dict.fromkeys(
+                origin.strip().rstrip("/") for origin in raw_origins.split(",") if origin.strip()
+            )
+        )
+
+        for origin in origins:
+            if origin == "*":
+                raise ConfigurationError("CORS_ALLOWED_ORIGINS no permite el origen comodín '*'")
+
+            parsed_origin = urlparse(origin)
+            if (
+                parsed_origin.scheme not in {"http", "https"}
+                or not parsed_origin.netloc
+                or parsed_origin.path
+                or parsed_origin.params
+                or parsed_origin.query
+                or parsed_origin.fragment
+            ):
+                raise ConfigurationError(
+                    "CORS_ALLOWED_ORIGINS debe contener orígenes HTTP(S) válidos "
+                    "separados por comas"
+                )
+
+        return cls(allowed_origins=origins)
+
+
+@dataclass(frozen=True, slots=True)
 class AzureStorageSettings:
     account_url: str
     container_name: str
