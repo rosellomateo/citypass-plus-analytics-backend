@@ -1,8 +1,4 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-# More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
-
-name: Build and deploy Python app to Azure Web App - rg-citypass-backend-test
+name: Build and deploy backend container to Azure Web App - test
 
 on:
   push:
@@ -10,67 +6,151 @@ on:
       - develop
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-test
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  AZURE_WEBAPP_NAME: rg-citypass-backend-test
+  AZURE_RESOURCE_GROUP: rg-citypass-backend-test
+  BACKEND_PUBLIC_URL: https://rg-citypass-backend-test-g0hdacdxccbdb6g5.brazilsouth-01.azurewebsites.net
+
 jobs:
-  build:
+  quality:
+    name: Validate backend
     runs-on: ubuntu-latest
-    permissions:
-      contents: read #This is required for actions/checkout
+    timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v6
 
-      - name: Set up Python version
-        uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
 
-      # 🛠️ Local Build Section (Optional)
-      # The following section in your workflow is designed to catch build issues early on the client side, before deployment. This can be helpful for debugging and validation. However, if this step significantly increases deployment time and early detection is not critical for your workflow, you may remove this section to streamline the deployment process.
-      - name: Create and Start virtual environment and Install dependencies
+      - name: Install dependencies
         run: |
-          python -m venv antenv
-          source antenv/bin/activate
-          pip install -r requirements.txt
-                
-      # By default, when you enable GitHub CI/CD integration through the Azure portal, the platform automatically sets the SCM_DO_BUILD_DURING_DEPLOYMENT application setting to true. This triggers the use of Oryx, a build engine that handles application compilation and dependency installation (e.g., pip install) directly on the platform during deployment. Hence, we exclude the antenv virtual environment directory from the deployment artifact to reduce the payload size. 
-      - name: Upload artifact for deployment jobs
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-app
-          path: |
-            .
-            !antenv/
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r requirements-dev.txt
 
-      # 🚫 Opting Out of Oryx Build
-      # If you prefer to disable the Oryx build process during deployment, follow these steps:
-      # 1. Remove the SCM_DO_BUILD_DURING_DEPLOYMENT app setting from your Azure App Service Environment variables.
-      # 2. Refer to sample workflows for alternative deployment strategies: https://github.com/Azure/actions-workflow-samples/tree/master/AppService
-      
+      - name: Check formatting
+        run: python -m ruff format --check .
+
+      - name: Run linting
+        run: python -m ruff check .
+
+      - name: Run tests with coverage
+        run: python -m pytest
+
+  build:
+    name: Build and publish container
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish production image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: production
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
-    runs-on: ubuntu-latest
+    name: Deploy test container
     needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      contents: read
+      id-token: write
 
     steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: python-app
-      
-      - name: Login to Azure
+      - name: Validate deployment secrets
+        env:
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          AZURE_CLIENT_ID: ${{ secrets.AZUREAPPSERVICE_CLIENTID_B59C496BB1704620AFEB082C578133A9 }}
+          AZURE_TENANT_ID: ${{ secrets.AZUREAPPSERVICE_TENANTID_6482AAF165B249D0AF8F3E2FED23F896 }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_B5BDDA8BC43B46808B5ABBC85F0E702C }}
+        run: |
+          : "${GHCR_PULL_TOKEN:?Define GHCR_PULL_TOKEN as a repository secret}"
+          : "${AZURE_CLIENT_ID:?Azure client ID secret is missing}"
+          : "${AZURE_TENANT_ID:?Azure tenant ID secret is missing}"
+          : "${AZURE_SUBSCRIPTION_ID:?Azure subscription ID secret is missing}"
+
+      - name: Log in to Azure with OIDC
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_B59C496BB1704620AFEB082C578133A9 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_6482AAF165B249D0AF8F3E2FED23F896 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_B5BDDA8BC43B46808B5ABBC85F0E702C }}
 
-      - name: 'Deploy to Azure Web App'
+      - name: Configure private registry and container port
+        env:
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          GHCR_PULL_USERNAME: ${{ github.repository_owner }}
+        run: |
+          az webapp config appsettings set \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_WEBAPP_NAME" \
+            --settings WEBSITES_PORT=8000 \
+            --output none
+          az webapp config container set \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_WEBAPP_NAME" \
+            --container-image-name "$IMAGE_NAME:$GITHUB_SHA" \
+            --container-registry-url "https://$REGISTRY" \
+            --container-registry-user "$GHCR_PULL_USERNAME" \
+            --container-registry-password "$GHCR_PULL_TOKEN" \
+            --output none
+
+      - name: Deploy container to Azure Web App
         uses: azure/webapps-deploy@v3
-        id: deploy-to-webapp
         with:
-          app-name: 'rg-citypass-backend-test'
-          slot-name: 'Production'
-          
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          slot-name: Production
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Verify test health
+        run: |
+          base_url="${BACKEND_PUBLIC_URL%/}"
+          curl --fail --silent --show-error \
+            --retry 18 --retry-all-errors --retry-delay 10 \
+            "${base_url}/health"
+
+      - name: Verify test Gold connection
+        run: |
+          base_url="${BACKEND_PUBLIC_URL%/}"
+          curl --fail --silent --show-error --output /dev/null \
+            --retry 6 --retry-all-errors --retry-delay 5 \
+            "${base_url}/analytics/residuos"
