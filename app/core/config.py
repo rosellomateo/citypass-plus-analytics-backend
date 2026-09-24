@@ -48,12 +48,15 @@ class AzureStorageSettings:
     sas_token: str = field(repr=False)
 
     @classmethod
-    def from_environment(cls) -> "AzureStorageSettings":
-        names = (
-            "AZURE_STORAGE_ACCOUNT_URL",
-            "AZURE_STORAGE_CONTAINER",
-            "AZURE_STORAGE_SAS_TOKEN",
-        )
+    def from_environment(
+        cls,
+        prefix: str = "AZURE_STORAGE",
+    ) -> "AzureStorageSettings":
+        account_key = f"{prefix}_ACCOUNT_URL"
+        container_key = f"{prefix}_CONTAINER"
+        token_key = f"{prefix}_SAS_TOKEN"
+
+        names = (account_key, container_key, token_key)
         values = {name: os.getenv(name, "").strip() for name in names}
         missing = [name for name, value in values.items() if not value]
 
@@ -62,17 +65,19 @@ class AzureStorageSettings:
                 f"Faltan variables de entorno requeridas: {', '.join(missing)}"
             )
 
-        account_url = values["AZURE_STORAGE_ACCOUNT_URL"].rstrip("/")
+        account_url = values[account_key].rstrip("/")
         parsed_url = urlparse(account_url)
-        if parsed_url.scheme != "https" or not parsed_url.netloc:
-            raise ConfigurationError("AZURE_STORAGE_ACCOUNT_URL debe ser una URL HTTPS válida")
 
-        sas_token = values["AZURE_STORAGE_SAS_TOKEN"].removeprefix("?")
+        if parsed_url.scheme != "https" or not parsed_url.netloc:
+            raise ConfigurationError(f"{account_key} debe ser una URL HTTPS válida")
+
+        sas_token = values[token_key].removeprefix("?")
+
         if not sas_token:
-            raise ConfigurationError("AZURE_STORAGE_SAS_TOKEN no puede estar vacío")
+            raise ConfigurationError(f"{token_key} no puede estar vacío")
 
         return cls(
             account_url=account_url,
-            container_name=values["AZURE_STORAGE_CONTAINER"],
+            container_name=values[container_key],
             sas_token=sas_token,
         )

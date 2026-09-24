@@ -1,9 +1,13 @@
+from app.repositories.analisis_repository import AzureJsonRepository
 from app.repositories.parquet_repository import AzureParquetRepository
 from app.schemas.sch_movilidad_urbana import Movilidad
+from app.schemas.sch_respuestas import InformeAnalisis, RespuestaMovilidad
 
 
-def obtener_analitica_viajes(repositorio: AzureParquetRepository) -> list[Movilidad]:
-
+def obtener_analitica_viajes(
+    repositorio: AzureParquetRepository,
+    repositorio_informes: AzureJsonRepository,
+) -> RespuestaMovilidad:
     df = repositorio.read("Movilidad Urbana/viajes_resumen.parquet")
 
     viajes = []
@@ -14,4 +18,7 @@ def obtener_analitica_viajes(repositorio: AzureParquetRepository) -> list[Movili
         viaje = Movilidad.model_validate(fila)
         viajes.append(viaje)
 
-    return viajes
+    contenido_json = repositorio_informes.read("movilidad.json")
+    informe = InformeAnalisis.model_validate(contenido_json)
+
+    return RespuestaMovilidad(datos=viajes, informe=informe)

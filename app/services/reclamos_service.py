@@ -1,8 +1,12 @@
+from app.repositories.analisis_repository import AzureJsonRepository
 from app.repositories.parquet_repository import AzureParquetRepository
 from app.schemas.sch_reclamos import Reclamo
+from app.schemas.sch_respuestas import InformeAnalisis, RespuestaReclamos
 
 
-def obtener_analitica_reclamos(repositorio: AzureParquetRepository) -> list[Reclamo]:
+def obtener_analitica_reclamos(
+    repositorio: AzureParquetRepository, repositorio_informes: AzureJsonRepository
+) -> list[Reclamo]:
 
     df = repositorio.read("Reclamos/reclamos_resumen.parquet")
 
@@ -14,4 +18,11 @@ def obtener_analitica_reclamos(repositorio: AzureParquetRepository) -> list[Recl
         reclamo = Reclamo.model_validate(fila)
         reclamos.append(reclamo)
 
-    return reclamos
+    contenido_json = repositorio_informes.read("reclamos.json")
+
+    informe = InformeAnalisis.model_validate(contenido_json)
+
+    return RespuestaReclamos(
+        datos=reclamos,
+        informe=informe,
+    )

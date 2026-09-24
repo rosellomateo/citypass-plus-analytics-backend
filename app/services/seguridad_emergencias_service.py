@@ -1,9 +1,13 @@
+from app.repositories.analisis_repository import AzureJsonRepository
 from app.repositories.parquet_repository import AzureParquetRepository
+from app.schemas.sch_respuestas import InformeAnalisis, RespuestaSeguridadEmergencias
 from app.schemas.sch_seguridad_emergencias import SeguridadEmergencia
 
 
-def obtener_analitica_emergencias(repositorio: AzureParquetRepository) -> list[SeguridadEmergencia]:
-
+def obtener_analitica_emergencias(
+    repositorio: AzureParquetRepository,
+    repositorio_informes: AzureJsonRepository,
+) -> RespuestaSeguridadEmergencias:
     df = repositorio.read("Emergencias y Seguridad/emergencias_resumen.parquet")
 
     emergencias = []
@@ -14,4 +18,7 @@ def obtener_analitica_emergencias(repositorio: AzureParquetRepository) -> list[S
         emergencia = SeguridadEmergencia.model_validate(fila)
         emergencias.append(emergencia)
 
-    return emergencias
+    contenido_json = repositorio_informes.read("emergencias.json")
+    informe = InformeAnalisis.model_validate(contenido_json)
+
+    return RespuestaSeguridadEmergencias(datos=emergencias, informe=informe)

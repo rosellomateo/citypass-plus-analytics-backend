@@ -218,7 +218,6 @@ def test_event_returns_serializable_utc_datetime(client: TestClient) -> None:
     ("path", "schema"),
     [
         ("/analytics/reclamos", "Reclamo"),
-        # ("/analytics/eventos", "RespuestaAnaliticaEventos"),
         ("/analytics/movilidad-urbana", "Movilidad"),
         ("/analytics/espacios-cultura", "EspacioCultura"),
         ("/analytics/residuos", "Residuo"),
