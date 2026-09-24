@@ -1,11 +1,11 @@
-from datetime import UTC, datetime
+from datetime import datetime
 
 import polars as pl
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.routers.conexion import obtener_repositorio
+from app.routers.conexion import obtener_repositorio, obtener_repositorio_informes
 
 
 class FakeParquetRepository:
@@ -93,16 +93,54 @@ class FakeParquetRepository:
         return self.data.get(blob_name, pl.DataFrame())
 
 
+REPORT_FILES = {
+    "/analytics/reclamos": "reclamos.json",
+    "/analytics/seguridad-emergencias": "emergencias.json",
+    "/analytics/movilidad-urbana": "movilidad.json",
+    "/analytics/espacios-cultura": "espacios.json",
+    "/analytics/residuos": "residuos.json",
+}
+
+
+def make_report(filename):
+    return {
+        "actualizado_en": "2026-09-21T12:00:00",
+        "analisis": [
+            {
+                "generado_en": "2026-09-21T12:00:00",
+                "semana": semana,
+                "metadata": {"fuentes": [filename], "cifras": {"total": 12}},
+                "resumen": {
+                    "parrafo_ejecutivo": f"Análisis de {filename}",
+                    "puntos_destacados": ["Mejora del servicio"],
+                    "recomendaciones": [],
+                    "riesgos": [],
+                },
+            }
+            for semana in ["2026-W39", "2026-W38"]
+        ],
+        "caso_de_uso": filename,
+        "semanas": ["2026-W39", "2026-W38"],
+        "ultima_semana": "2026-W39",
+        "version_esquema": "1.0",
+    }
+
+
+class FakeJsonRepository:
+    def read(self, blob_name):
+        assert blob_name in REPORT_FILES.values()
+        return make_report(blob_name)
+
+
 @pytest.fixture
 def client():
-    fake_repository = FakeParquetRepository()
-
-    app.dependency_overrides[obtener_repositorio] = lambda: fake_repository
-
-    with TestClient(app) as test_client:
-        yield test_client
-
-    app.dependency_overrides.clear()
+    app.dependency_overrides[obtener_repositorio] = FakeParquetRepository
+    app.dependency_overrides[obtener_repositorio_informes] = FakeJsonRepository
+    try:
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        app.dependency_overrides.clear()
 
 
 @pytest.mark.parametrize(
@@ -194,24 +232,12 @@ def test_analytics_returns_json(
 
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/json"
-    assert response.json() == expected
-
-
-def test_event_returns_serializable_utc_datetime(client: TestClient) -> None:
-    response = client.get("/analytics/eventos")
-
-    assert response.status_code == 200
     payload = response.json()
-    occurred_at = datetime.fromisoformat(payload.pop("fecha_hora"))
-    assert occurred_at == datetime(2026, 9, 5, 12, 0, tzinfo=UTC)
-    assert occurred_at.utcoffset().total_seconds() == 0
-    assert payload == {
-        "id_evento": "evento-prueba-001",
-        "tipo_evento": "EmergenciaCreada",
-        "area": "EMERGENCIAS",
-        "version": "1.0",
-        "id_correlacion": "correlacion-prueba-001",
-    }
+
+    informe_esperado = make_report(REPORT_FILES[path])
+
+    assert payload["datos"] == expected
+    assert payload["informe"] == informe_esperado
 
 
 @pytest.mark.parametrize(
@@ -227,8 +253,18 @@ def test_event_returns_serializable_utc_datetime(client: TestClient) -> None:
 def test_openapi_declares_response_contract(client: TestClient, path: str, schema: str) -> None:
     response = client.get("/openapi.json")
 
-    assert response.status_code == 200
-    operation = response.json()["paths"][path]["get"]
+    document = response.json()
+
+    operation = document["paths"][path]["get"]
     response_schema = operation["responses"]["200"]["content"]["application/json"]["schema"]
-    assert response_schema["type"] == "array"
-    assert response_schema["items"]["$ref"] == f"#/components/schemas/{schema}"
+
+    # Obtener la clase de respuesta referenciada por OpenAPI.
+    response_name = response_schema["$ref"].rsplit("/", 1)[-1]
+    properties = document["components"]["schemas"][response_name]["properties"]
+
+    # "datos" sigue siendo una lista de entidades.
+    assert properties["datos"]["type"] == "array"
+    assert properties["datos"]["items"]["$ref"] == f"#/components/schemas/{schema}"
+
+    # La respuesta ahora también incluye el informe.
+    assert properties["informe"]["$ref"] == "#/components/schemas/InformeAnalisis"

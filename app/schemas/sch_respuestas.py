@@ -3,9 +3,9 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from app.schemas.sch_reclamos import Reclamo
 from app.schemas.sch_espacios_cultura import EspacioCultura
 from app.schemas.sch_movilidad_urbana import Movilidad
+from app.schemas.sch_reclamos import Reclamo
 from app.schemas.sch_residuos import Residuo
 from app.schemas.sch_seguridad_emergencias import SeguridadEmergencia
 
