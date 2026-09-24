@@ -41,9 +41,9 @@ El workflow de `main` usa el GitHub Environment `production`. Debe contener:
 | Variable | `AZURE_WEBAPP_NAME` | Nombre de la Web App productiva. |
 | Variable | `AZURE_RESOURCE_GROUP` | Resource Group que contiene la Web App. |
 | Variable | `BACKEND_PUBLIC_URL` | URL HTTPS pública, usada para mostrar el deployment y probar `/health`. |
-| Secreto | `AZURE_CLIENT_ID` | Client ID de la identidad usada por OIDC. |
-| Secreto | `AZURE_TENANT_ID` | Tenant ID de Azure. |
-| Secreto | `AZURE_SUBSCRIPTION_ID` | Subscription ID que contiene la Web App. |
+| Secreto | `AZUREAPPSERVICE_CLIENTID_B59C496BB1704620AFEB082C578133A9` | Client ID de la identidad usada por OIDC. |
+| Secreto | `AZUREAPPSERVICE_TENANTID_6482AAF165B249D0AF8F3E2FED23F896` | Tenant ID de Azure. |
+| Secreto | `AZUREAPPSERVICE_SUBSCRIPTIONID_B5BDDA8BC43B46808B5ABBC85F0E702C` | Subscription ID que contiene la Web App. |
 | Secreto | `GHCR_PULL_TOKEN` | PAT classic con `read:packages` para que App Service descargue la imagen privada. |
 
 La identidad federada debe aceptar el subject correspondiente al environment
@@ -57,6 +57,9 @@ Configurar como Application Settings:
 - `AZURE_STORAGE_ACCOUNT_URL`
 - `AZURE_STORAGE_CONTAINER`
 - `AZURE_STORAGE_SAS_TOKEN`
+- `AZURE_ANALISIS_ACCOUNT_URL`
+- `AZURE_ANALISIS_CONTAINER`
+- `AZURE_ANALISIS_SAS_TOKEN`
 - `CORS_ALLOWED_ORIGINS`, con la URL pública exacta del frontend
 
 La configuración pertenece al entorno de Azure, no al artefacto desplegado. Los
@@ -73,6 +76,13 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 Configurar `/health` como ruta de comprobación de estado de la plataforma. Este
 endpoint no depende de Azure Storage.
+
+La credencial federada de producción debe usar el environment de GitHub, no la
+rama directamente:
+
+```text
+repo:rosellomateo/citypass-plus-analytics-backend:environment:production
+```
 
 ## Flujo del contenedor
 
