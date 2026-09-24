@@ -41,9 +41,9 @@ El workflow de `main` usa el GitHub Environment `production`. Debe contener:
 | Variable | `AZURE_WEBAPP_NAME` | Nombre de la Web App productiva. |
 | Variable | `AZURE_RESOURCE_GROUP` | Resource Group que contiene la Web App. |
 | Variable | `BACKEND_PUBLIC_URL` | URL HTTPS pública, usada para mostrar el deployment y probar `/health`. |
-| Secreto | `AZURE_CLIENT_ID` | Client ID de la identidad usada por OIDC. |
-| Secreto | `AZURE_TENANT_ID` | Tenant ID de Azure. |
-| Secreto | `AZURE_SUBSCRIPTION_ID` | Subscription ID que contiene la Web App. |
+| Secreto | `AZUREAPPSERVICE_CLIENTID_B59C496BB1704620AFEB082C578133A9` | Client ID de la identidad usada por OIDC. |
+| Secreto | `AZUREAPPSERVICE_TENANTID_6482AAF165B249D0AF8F3E2FED23F896` | Tenant ID de Azure. |
+| Secreto | `AZUREAPPSERVICE_SUBSCRIPTIONID_B5BDDA8BC43B46808B5ABBC85F0E702C` | Subscription ID que contiene la Web App. |
 | Secreto | `GHCR_PULL_TOKEN` | PAT classic con `read:packages` para que App Service descargue la imagen privada. |
 
 La identidad federada debe aceptar el subject correspondiente al environment
