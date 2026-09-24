@@ -1,3 +1,15 @@
+[project]
+name = "citypass-plus-analytics-backend"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "polars",
+    "azure-storage-blob",
+]
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100
@@ -7,6 +19,9 @@ select = ["B", "E", "F", "I", "UP"]
 
 [tool.pytest.ini_options]
 testpaths = ["test"]
+markers = [
+    "azure: prueba de integración que requiere credenciales de Azure Storage",
+]
 addopts = [
     "--strict-markers",
     "--cov=app",
