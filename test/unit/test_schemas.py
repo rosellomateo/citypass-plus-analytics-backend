@@ -4,7 +4,6 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 from app.schemas.sch_espacios_cultura import EspacioCultura
-from app.schemas.sch_eventos import RespuestaAnaliticaEventos
 from app.schemas.sch_movilidad_urbana import Movilidad
 from app.schemas.sch_reclamos import Reclamo
 from app.schemas.sch_residuos import Residuo
@@ -39,26 +38,6 @@ def test_validates_espacios_cultura_response() -> None:
     assert espacio.inscriptos == 75
     assert espacio.pctOcupacion == 75.0
     assert espacio.fecha_snapshot == fecha
-
-
-def test_validates_eventos_response() -> None:
-    fecha = datetime(2026, 9, 21, 10, 30)
-
-    evento = RespuestaAnaliticaEventos(
-        id_evento="EVT-001",
-        tipo_evento="CREACION",
-        fecha_hora=fecha,
-        area="Movilidad",
-        version="1.0",
-        id_correlacion="CORR-001",
-    )
-
-    assert evento.id_evento == "EVT-001"
-    assert evento.tipo_evento == "CREACION"
-    assert evento.fecha_hora == fecha
-    assert evento.area == "Movilidad"
-    assert evento.version == "1.0"
-    assert evento.id_correlacion == "CORR-001"
 
 
 def test_validates_movilidad_response() -> None:
@@ -153,7 +132,6 @@ def test_validates_seguridad_emergencias_response() -> None:
     "schema",
     [
         EspacioCultura,
-        RespuestaAnaliticaEventos,
         Movilidad,
         Reclamo,
         Residuo,

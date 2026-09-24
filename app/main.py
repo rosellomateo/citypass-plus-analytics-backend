@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import CorsSettings
 from app.routers.rout_espacios_cultura import router as espacio_cultura_router
-from app.routers.rout_eventos import router as eventos_router
 from app.routers.rout_movilidad_urbana import router as movilidad_urbana_router
 from app.routers.rout_reclamos import router as reclamos_router
 from app.routers.rout_residuos import router as residuos_router
@@ -28,7 +27,6 @@ def create_app(cors_settings: CorsSettings | None = None) -> FastAPI:
         )
 
     application.include_router(espacio_cultura_router)
-    application.include_router(eventos_router)
     application.include_router(movilidad_urbana_router)
     application.include_router(reclamos_router)
     application.include_router(residuos_router)
