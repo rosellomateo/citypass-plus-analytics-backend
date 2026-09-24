@@ -57,6 +57,9 @@ Configurar como Application Settings:
 - `AZURE_STORAGE_ACCOUNT_URL`
 - `AZURE_STORAGE_CONTAINER`
 - `AZURE_STORAGE_SAS_TOKEN`
+- `AZURE_ANALISIS_ACCOUNT_URL`
+- `AZURE_ANALISIS_CONTAINER`
+- `AZURE_ANALISIS_SAS_TOKEN`
 - `CORS_ALLOWED_ORIGINS`, con la URL pública exacta del frontend
 
 La configuración pertenece al entorno de Azure, no al artefacto desplegado. Los
@@ -73,6 +76,13 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 Configurar `/health` como ruta de comprobación de estado de la plataforma. Este
 endpoint no depende de Azure Storage.
+
+La credencial federada de producción debe usar el environment de GitHub, no la
+rama directamente:
+
+```text
+repo:rosellomateo/citypass-plus-analytics-backend:environment:production
+```
 
 ## Flujo del contenedor
 
