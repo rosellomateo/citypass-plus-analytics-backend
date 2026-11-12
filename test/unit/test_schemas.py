@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 import pytest
 from pydantic import BaseModel, ValidationError
@@ -69,6 +69,7 @@ def test_validates_reclamos_response() -> None:
         prioridad="Alta",
         origenClasificacion="Manual",
         estado_actual="Resuelto",
+        causaTipo="Falla eléctrica",
         row_count=15,
         tiempo_prom_hasta_estado_actual=24.5,
         fecha_snapshot=fecha,
@@ -79,6 +80,7 @@ def test_validates_reclamos_response() -> None:
     assert reclamo.prioridad == "Alta"
     assert reclamo.origenClasificacion == "Manual"
     assert reclamo.estado_actual == "Resuelto"
+    assert reclamo.causaTipo == "Falla eléctrica"
     assert reclamo.row_count == 15
     assert reclamo.tiempo_prom_hasta_estado_actual == 24.5
     assert reclamo.fecha_snapshot == fecha
@@ -109,11 +111,15 @@ def test_validates_residuos_response() -> None:
 
 
 def test_validates_seguridad_emergencias_response() -> None:
-    fecha = datetime(2026, 9, 21, 10, 30)
+    fecha = date(2026, 9, 21)
 
     emergencia = SeguridadEmergencia(
         estado_actual="Resuelta",
         prioridad="Alta",
+        categoria="Incendio",
+        causaTipo="Accidental",
+        afectaCirculacion=True,
+        criticidadAfectada=3,
         cantidadEmergencias=12,
         tiempoPromRespuestaDespacho=4.5,
         tiempoPromRespuestaLugar=9.8,

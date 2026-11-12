@@ -8,6 +8,8 @@ dependencies = [
     "uvicorn",
     "polars",
     "azure-storage-blob",
+    "pyjwt[crypto]>=2.10.1",
+    "python-dotenv>=1.2.4",
 ]
 
 [tool.ruff]
@@ -36,3 +38,10 @@ source = ["app"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.2.0",
+    "pytest-cov>=7.1.0",
+]

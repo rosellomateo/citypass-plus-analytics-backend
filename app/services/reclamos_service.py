@@ -6,7 +6,7 @@ from app.schemas.sch_respuestas import InformeAnalisis, RespuestaReclamos
 
 def obtener_analitica_reclamos(
     repositorio: AzureParquetRepository, repositorio_informes: AzureJsonRepository
-) -> list[Reclamo]:
+) -> RespuestaReclamos:
 
     df = repositorio.read("Reclamos/reclamos_resumen.parquet")
 

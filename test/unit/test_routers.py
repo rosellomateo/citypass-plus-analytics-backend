@@ -1,11 +1,14 @@
-from datetime import datetime
+from datetime import date, datetime
 
 import polars as pl
 import pytest
+from fastapi import Request
 from fastapi.testclient import TestClient
 
+from app.core.conexion import obtener_repositorio, obtener_repositorio_informes
+from app.core.security.dependencies import obtener_usuario_actual, obtener_validador
 from app.main import app
-from app.routers.conexion import obtener_repositorio, obtener_repositorio_informes
+from app.schemas.sch_usuario_autenticado import UsuarioAutenticado
 
 
 class FakeParquetRepository:
@@ -19,6 +22,7 @@ class FakeParquetRepository:
                         "prioridad": "Alta",
                         "origenClasificacion": "Manual",
                         "estado_actual": "Resuelto",
+                        "causaTipo": "Falla eléctrica",
                         "row_count": 15,
                         "tiempo_prom_hasta_estado_actual": 24.5,
                         "fecha_snapshot": datetime(2026, 9, 21, 10, 30),
@@ -30,10 +34,14 @@ class FakeParquetRepository:
                     {
                         "estado_actual": "Resuelta",
                         "prioridad": "Alta",
-                        "cantidadEmergencias": 12,
+                        "categoria": "Incendio",
+                    "causaTipo": "Accidental",
+                    "afectaCirculacion": True,
+                    "criticidadAfectada": 3,
+                    "cantidadEmergencias": 12,
                         "tiempoPromRespuestaDespacho": 4.5,
                         "tiempoPromRespuestaLugar": 9.8,
-                        "fecha_snapshot": datetime(2026, 9, 21, 10, 30),
+                        "fecha_snapshot": date(2026, 9, 21),
                     }
                 ]
             ),
@@ -133,7 +141,14 @@ class FakeJsonRepository:
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    def usuario_prueba(request: Request):
+        return UsuarioAutenticado(
+            sub="usuario-prueba", groups=["admin"],
+            module=MODULOS_POR_RUTA.get(request.url.path, "analitica"),
+        )
+
+    app.dependency_overrides[obtener_usuario_actual] = usuario_prueba
     app.dependency_overrides[obtener_repositorio] = FakeParquetRepository
     app.dependency_overrides[obtener_repositorio_informes] = FakeJsonRepository
     try:
@@ -155,7 +170,8 @@ def client():
                     "prioridad": "Alta",
                     "origenClasificacion": "Manual",
                     "estado_actual": "Resuelto",
-                    "row_count": 15,
+                    "causaTipo": "Falla eléctrica",
+                        "row_count": 15,
                     "tiempo_prom_hasta_estado_actual": 24.5,
                     "fecha_snapshot": "2026-09-21T10:30:00",
                 }
@@ -167,10 +183,14 @@ def client():
                 {
                     "estado_actual": "Resuelta",
                     "prioridad": "Alta",
+                    "categoria": "Incendio",
+                    "causaTipo": "Accidental",
+                    "afectaCirculacion": True,
+                    "criticidadAfectada": 3,
                     "cantidadEmergencias": 12,
                     "tiempoPromRespuestaDespacho": 4.5,
                     "tiempoPromRespuestaLugar": 9.8,
-                    "fecha_snapshot": "2026-09-21T10:30:00",
+                    "fecha_snapshot": "2026-09-21",
                 }
             ],
         ),
@@ -268,3 +288,44 @@ def test_openapi_declares_response_contract(client: TestClient, path: str, schem
 
     # La respuesta ahora también incluye el informe.
     assert properties["informe"]["$ref"] == "#/components/schemas/InformeAnalisis"
+
+
+@pytest.mark.parametrize("path", REPORT_FILES)
+def test_analytics_rejects_authenticated_user_without_admin(client, path):
+    app.dependency_overrides[obtener_usuario_actual] = lambda: UsuarioAutenticado(
+        sub="sin-permiso", groups=[], module=MODULOS_POR_RUTA[path]
+    )
+    response = client.get(path)
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Se requiere el grupo admin"}
+
+
+@pytest.mark.parametrize("path", REPORT_FILES)
+def test_analytics_requires_bearer_token(client, path):
+    del app.dependency_overrides[obtener_usuario_actual]
+    # Evita cargar configuracion/JWKS; sin token no se invoca validar.
+    app.dependency_overrides[obtener_validador] = lambda: None
+    response = client.get(path)
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == "Bearer"
+
+
+MODULOS_POR_RUTA = {
+    "/analytics/espacios-cultura": "espacios",
+    "/analytics/movilidad-urbana": "movilidad",
+    "/analytics/reclamos": "reclamos",
+    "/analytics/residuos": "residuos",
+    "/analytics/seguridad-emergencias": "emergencias",
+}
+
+
+@pytest.mark.parametrize("path", MODULOS_POR_RUTA)
+@pytest.mark.parametrize("module", ["espacios", "movilidad", "reclamos", "residuos", "emergencias", "analitica"])
+@pytest.mark.parametrize("admin", [False, True])
+def test_module_and_permission_access(client, path, module, admin):
+    app.dependency_overrides[obtener_usuario_actual] = lambda: UsuarioAutenticado(
+        sub="usuario-prueba", groups=["admin"] if admin else ["grupo-prueba"],
+        module=module,
+    )
+    response = client.get(path)
+    assert response.status_code == (200 if admin else 403)
