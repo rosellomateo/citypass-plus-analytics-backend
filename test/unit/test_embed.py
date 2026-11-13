@@ -203,3 +203,43 @@ def test_admin_does_not_bypass_namespace(setup):
         ),
     )
     assert response.status_code == 403
+
+
+@pytest.mark.parametrize("requested", sorted(embed_auth.NAMESPACES_POR_MODULO))
+@pytest.mark.parametrize("caller", sorted(embed_auth.NAMESPACES_POR_MODULO))
+def test_admin_audience_requires_matching_namespace(setup, requested, caller):
+    client, headers, _ = setup
+    response = client.get(
+        "/embed/" + requested,
+        headers=headers(caller, changes={"aud": "citypass-admin-api"}),
+    )
+    assert response.status_code == (200 if caller == requested else 403)
+    if response.status_code == 200:
+        assert response.json() == {"status": "ok"}
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"aud": ["citypass-admin-api"]},
+        {"aud": "citypass-analitica-api"},
+        {"aud": "citypass-eda-api"},
+        {"aud": "citypass-admin-api", "token_use": "service"},
+        {"aud": "citypass-admin-api", "exp": 1},
+    ],
+)
+def test_admin_audience_does_not_relax_token_validation(setup, changes):
+    client, headers, _ = setup
+    assert (
+        client.get("/embed/reclamos", headers=headers("reclamos", changes=changes)).status_code
+        == 401
+    )
+
+
+def test_admin_audience_invalid_signature(setup):
+    client, headers, _ = setup
+    response = client.get(
+        "/embed/reclamos",
+        headers=headers("reclamos", changes={"aud": "citypass-admin-api"}, bad_signature=True),
+    )
+    assert response.status_code == 401

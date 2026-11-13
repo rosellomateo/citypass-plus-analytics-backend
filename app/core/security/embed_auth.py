@@ -24,15 +24,19 @@ NAMESPACES_POR_MODULO = {
 AUDIENCIAS_POR_MODULO = {modulo: f"citypass-{modulo}-api" for modulo in NAMESPACES_POR_MODULO}
 
 
+AUDIENCIA_ADMIN = "citypass-admin-api"
+
+
 class HumanEmbedJWTValidator(JWTValidator):
     def validar_usuario(self, token: str) -> dict:
+        audiencias_permitidas = (self._settings.audience, AUDIENCIA_ADMIN)
         key = self._jwks_client.get_signing_key_from_jwt(token).key
         claims = jwt.decode(
             token,
             key,
             algorithms=["RS256"],
             issuer=self._settings.issuer,
-            audience=self._settings.audience,
+            audience=audiencias_permitidas,
             leeway=60,
             options={
                 "require": [
@@ -53,8 +57,10 @@ class HumanEmbedJWTValidator(JWTValidator):
         if type(claims["ver"]) is not int or claims["ver"] != 1:
             raise jwt.InvalidTokenError("Versión inválida")
         aud = claims["aud"]
-        if not isinstance(aud, str) or aud != self._settings.audience:
-            raise jwt.InvalidTokenError("aud debe ser el string correspondiente al módulo")
+        if not isinstance(aud, str) or aud not in audiencias_permitidas:
+            raise jwt.InvalidTokenError(
+                "aud debe ser un string con la audiencia del módulo o de admin"
+            )
         for name in ("sub", "jti", "namespace"):
             if not isinstance(claims[name], str) or not claims[name].strip():
                 raise jwt.InvalidTokenError(f"Claim {name} inválido")
