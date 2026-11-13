@@ -35,10 +35,10 @@ class FakeParquetRepository:
                         "estado_actual": "Resuelta",
                         "prioridad": "Alta",
                         "categoria": "Incendio",
-                    "causaTipo": "Accidental",
-                    "afectaCirculacion": True,
-                    "criticidadAfectada": 3,
-                    "cantidadEmergencias": 12,
+                        "causaTipo": "Accidental",
+                        "afectaCirculacion": True,
+                        "criticidadAfectada": 3,
+                        "cantidadEmergencias": 12,
                         "tiempoPromRespuestaDespacho": 4.5,
                         "tiempoPromRespuestaLugar": 9.8,
                         "fecha_snapshot": date(2026, 9, 21),
@@ -144,7 +144,8 @@ class FakeJsonRepository:
 def client(monkeypatch):
     def usuario_prueba(request: Request):
         return UsuarioAutenticado(
-            sub="usuario-prueba", groups=["admin"],
+            sub="usuario-prueba",
+            groups=["admin"],
             module=MODULOS_POR_RUTA.get(request.url.path, "analitica"),
         )
 
@@ -171,7 +172,7 @@ def client(monkeypatch):
                     "origenClasificacion": "Manual",
                     "estado_actual": "Resuelto",
                     "causaTipo": "Falla eléctrica",
-                        "row_count": 15,
+                    "row_count": 15,
                     "tiempo_prom_hasta_estado_actual": 24.5,
                     "fecha_snapshot": "2026-09-21T10:30:00",
                 }
@@ -320,11 +321,14 @@ MODULOS_POR_RUTA = {
 
 
 @pytest.mark.parametrize("path", MODULOS_POR_RUTA)
-@pytest.mark.parametrize("module", ["espacios", "movilidad", "reclamos", "residuos", "emergencias", "analitica"])
+@pytest.mark.parametrize(
+    "module", ["espacios", "movilidad", "reclamos", "residuos", "emergencias", "analitica"]
+)
 @pytest.mark.parametrize("admin", [False, True])
 def test_module_and_permission_access(client, path, module, admin):
     app.dependency_overrides[obtener_usuario_actual] = lambda: UsuarioAutenticado(
-        sub="usuario-prueba", groups=["admin"] if admin else ["grupo-prueba"],
+        sub="usuario-prueba",
+        groups=["admin"] if admin else ["grupo-prueba"],
         module=module,
     )
     response = client.get(path)

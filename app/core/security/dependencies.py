@@ -14,7 +14,6 @@ from app.core.security.jwt_validator import JWTValidator
 from app.core.security.permissions import es_admin
 from app.schemas.sch_usuario_autenticado import UsuarioAutenticado
 
-
 # Extrae el Bearer Token del header Authorization.
 bearer_scheme = HTTPBearer(auto_error=False)
 

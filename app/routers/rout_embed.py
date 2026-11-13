@@ -10,9 +10,16 @@ log = logging.getLogger(__name__)
 
 
 @router.get("/embed/{modulo}")
-def embed(modulo: str, response: Response, servicio: Annotated[dict, Depends(autorizar_embed)]) -> dict[str, str]:
-    """Prueba de autenticación de servicios; todavía no entrega el tablero HTML."""
+def embed(
+    modulo: str, response: Response, usuario: Annotated[dict, Depends(autorizar_embed)]
+) -> dict[str, str]:
+    """Prueba de autenticación de usuarios; todavía no entrega el tablero HTML."""
     response.headers["Cache-Control"] = "private, no-store"
-    log.info("embed modulo=%s servicio=%s namespace=%s jti=%s",
-             modulo, servicio["sub"], servicio["namespace"], servicio["jti"])
+    log.info(
+        "embed modulo=%s usuario=%s namespace=%s jti=%s",
+        modulo,
+        usuario["sub"],
+        usuario["namespace"],
+        usuario["jti"],
+    )
     return {"status": "ok"}

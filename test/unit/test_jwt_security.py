@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 
 import jwt
@@ -16,14 +16,22 @@ from app.main import create_app
 def signed_token():
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     claims = {
-        "sub": "usuario-prueba", "iss": "https://identidad.test", "aud": "analytics",
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
-        "token_use": "human", "ver": 1, "groups": [], "module": "reclamos",
+        "sub": "usuario-prueba",
+        "iss": "https://identidad.test",
+        "aud": "analytics",
+        "exp": datetime.now(UTC) + timedelta(minutes=5),
+        "token_use": "human",
+        "ver": 1,
+        "groups": [],
+        "module": "reclamos",
     }
-    validator = JWTValidator(SecuritySettings(
-        issuer="https://identidad.test", audience="analytics",
-        jwks_url="https://api.citypass-login.pp.ua/.well-known/jwks.json",
-    ))
+    validator = JWTValidator(
+        SecuritySettings(
+            issuer="https://identidad.test",
+            audience="analytics",
+            jwks_url="https://api.citypass-login.pp.ua/.well-known/jwks.json",
+        )
+    )
     jwk = jwt.algorithms.RSAAlgorithm.to_jwk(key.public_key(), as_dict=True)
     jwk["kid"] = "clave-prueba"
     validator._jwks_client.fetch_data = Mock(return_value={"keys": [jwk]})
@@ -36,10 +44,24 @@ def test_real_signature_and_claims(signed_token):
     assert validator.validar(token).sub == "usuario-prueba"
 
 
-@pytest.mark.parametrize("claim,value", [
-    ("iss", "https://otro.test"), ("aud", "otra-api"), ("aud", ["analytics"]), ("aud", []), ("aud", ""), ("aud", 123), ("aud", "analytics-extra"), ("exp", 1), ("module", None), ("module", ""), ("module", " "),
-    ("module", []), ("module", 123),
-])
+@pytest.mark.parametrize(
+    "claim,value",
+    [
+        ("iss", "https://otro.test"),
+        ("aud", "otra-api"),
+        ("aud", ["analytics"]),
+        ("aud", []),
+        ("aud", ""),
+        ("aud", 123),
+        ("aud", "analytics-extra"),
+        ("exp", 1),
+        ("module", None),
+        ("module", ""),
+        ("module", " "),
+        ("module", []),
+        ("module", 123),
+    ],
+)
 def test_rejects_invalid_claims(signed_token, claim, value):
     validator, _, key, claims = signed_token
     claims[claim] = value
@@ -62,14 +84,18 @@ def test_each_request_validates_token(signed_token):
     app = create_app()
     app.dependency_overrides[obtener_validador] = lambda: validator
     from app.core.conexion import obtener_repositorio, obtener_repositorio_informes
-    from test.unit.test_routers import FakeParquetRepository, FakeJsonRepository
+    from test.unit.test_routers import FakeJsonRepository, FakeParquetRepository
+
     app.dependency_overrides[obtener_repositorio] = FakeParquetRepository
     app.dependency_overrides[obtener_repositorio_informes] = FakeJsonRepository
     with TestClient(app) as client:
         for _ in range(2):
-            response = client.get("/analytics/reclamos", headers={
-                "Authorization": f"Bearer {token}",
-            })
+            response = client.get(
+                "/analytics/reclamos",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                },
+            )
             # El token se valida, pero sin admin se rechaza el acceso.
             assert response.status_code == 403
     assert validator.validar.call_count == 2
@@ -87,11 +113,14 @@ def test_jwks_default(monkeypatch):
 def test_cors_accepts_authorization():
     app = create_app(CorsSettings(allowed_origins=("http://localhost:5173",)))
     with TestClient(app) as client:
-        response = client.options("/analytics/reclamos", headers={
-            "Origin": "http://localhost:5173",
-            "Access-Control-Request-Method": "GET",
-            "Access-Control-Request-Headers": "authorization",
-        })
+        response = client.options(
+            "/analytics/reclamos",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "authorization",
+            },
+        )
     assert response.status_code == 200
 
 
@@ -108,21 +137,26 @@ def test_preserves_module_claim(signed_token):
     assert validator.validar(token).module == "reclamos"
 
 
-@pytest.mark.parametrize("audience,groups,expected", [
-    ("citypass-analitica-api", ["admin"], 200),
-    ("citypass-analitica-api", ["delegados", "admin"], 200),
-    ("citypass-analitica-api", ["reclamos"], 403),
-    ("citypass-analitica-api", ["Admin"], 403),
-    ("citypass-analitica-api", [], 403),
-    ("citypass-reclamos-api", ["admin"], 401),
-    ("citypass-admin-api", ["admin"], 401),
-])
+@pytest.mark.parametrize(
+    "audience,groups,expected",
+    [
+        ("citypass-analitica-api", ["admin"], 200),
+        ("citypass-analitica-api", ["delegados", "admin"], 200),
+        ("citypass-analitica-api", ["reclamos"], 403),
+        ("citypass-analitica-api", ["Admin"], 403),
+        ("citypass-analitica-api", [], 403),
+        ("citypass-reclamos-api", ["admin"], 401),
+        ("citypass-admin-api", ["admin"], 401),
+    ],
+)
 def test_analytics_admin_and_audience(signed_token, audience, groups, expected):
     from app.core.conexion import obtener_repositorio, obtener_repositorio_informes
-    from test.unit.test_routers import FakeParquetRepository, FakeJsonRepository
+    from test.unit.test_routers import FakeJsonRepository, FakeParquetRepository
+
     validator, _, key, claims = signed_token
     validator._settings = SecuritySettings(
-        issuer="https://identidad.test", audience="citypass-analitica-api",
+        issuer="https://identidad.test",
+        audience="citypass-analitica-api",
         jwks_url="https://api.citypass-login.pp.ua/.well-known/jwks.json",
     )
     claims.update(aud=audience, groups=groups, module="analitica")
@@ -132,6 +166,14 @@ def test_analytics_admin_and_audience(signed_token, audience, groups, expected):
     app.dependency_overrides[obtener_repositorio] = FakeParquetRepository
     app.dependency_overrides[obtener_repositorio_informes] = FakeJsonRepository
     with TestClient(app) as client:
-        for path in ["reclamos", "residuos", "movilidad-urbana", "espacios-cultura", "seguridad-emergencias"]:
-            response = client.get("/analytics/" + path, headers={"Authorization": "Bearer " + token})
+        for path in [
+            "reclamos",
+            "residuos",
+            "movilidad-urbana",
+            "espacios-cultura",
+            "seguridad-emergencias",
+        ]:
+            response = client.get(
+                "/analytics/" + path, headers={"Authorization": "Bearer " + token}
+            )
             assert response.status_code == expected
