@@ -147,10 +147,3 @@ jobs:
           curl --fail --silent --show-error \
             --retry 18 --retry-all-errors --retry-delay 10 \
             "${base_url}/health"
-
-      - name: Verify test Gold connection
-        run: |
-          base_url="${BACKEND_PUBLIC_URL%/}"
-          curl --fail --silent --show-error --output /dev/null \
-            --retry 6 --retry-all-errors --retry-delay 5 \
-            "${base_url}/analytics/residuos"

@@ -7,7 +7,7 @@ El repositorio contiene tres workflows:
 | Archivo | Disparador | Objetivo |
 | --- | --- | --- |
 | `.github/workflows/ci.yml` | Push o pull request a `main` y `develop` | Formato, lint, pruebas, validación de Compose, build de producción y smoke test de `/health`. |
-| `.github/workflows/develop_rg-citypass-backend-test.yml` | Push a `develop` o ejecución manual | Publica la imagen en GHCR, despliega el contenedor de test y valida la conexión Gold. |
+| `.github/workflows/develop_rg-citypass-backend-test.yml` | Push a `develop` o ejecución manual | Publica la imagen en GHCR, despliega el contenedor de test y verifica `/health`. |
 | `.github/workflows/deploy-production.yml` | Push a `main` o ejecución manual | Publica la imagen en GHCR, despliega el contenedor productivo y valida la conexión Gold. |
 
 ## Entorno de test
@@ -77,6 +77,12 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 Configurar `/health` como ruta de comprobación de estado de la plataforma. Este
 endpoint no depende de Azure Storage.
 
+El deploy de test comprueba `/health` sin un JWT de usuario. Las rutas
+`/analytics/*` requieren un token válido y el grupo `admin`, por lo que el
+workflow de test no las consulta durante el despliegue. Esta comprobación
+confirma que la aplicación responde; el acceso a Gold se valida por separado
+con la [prueba de integración de Azure](testing.md#prueba-real-contra-gold).
+
 La credencial federada de producción debe usar el environment de GitHub, no la
 rama directamente:
 
@@ -92,7 +98,8 @@ repo:rosellomateo/citypass-plus-analytics-backend:environment:production
 4. El job `deploy` inicia sesión en Azure mediante OIDC.
 5. El workflow configura GHCR y el puerto del contenedor en la Web App.
 6. App Service descarga la imagen etiquetada con el SHA del commit.
-7. El pipeline comprueba `/health` y `/analytics/residuos`.
+7. El pipeline de test comprueba `/health`. El de producción comprueba `/health`
+   y `/analytics/residuos`.
 
 `GITHUB_TOKEN` se usa solamente para publicar desde el workflow. La Web App usa
 `GHCR_PULL_TOKEN` porque necesita descargar la imagen después de que el job haya
