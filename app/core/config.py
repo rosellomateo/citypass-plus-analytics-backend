@@ -81,3 +81,32 @@ class AzureStorageSettings:
             container_name=values[container_key],
             sas_token=sas_token,
         )
+
+
+# Configuración de seguridad
+@dataclass(frozen=True)
+class SecuritySettings:
+    issuer: str
+    audience: str
+    jwks_url: str
+
+    @classmethod
+    def from_environment(cls) -> "SecuritySettings":
+        names = {
+            "issuer": "JWT_ISSUER",
+            "audience": "JWT_AUDIENCE",
+            "jwks_url": "JWKS_URL",
+        }
+
+        values = {field: os.getenv(env_name, "").strip() for field, env_name in names.items()}
+
+        values["jwks_url"] = (
+            values["jwks_url"] or "https://api.citypass-login.pp.ua/.well-known/jwks.json"
+        )
+
+        missing = [names[field] for field, value in values.items() if not value]
+
+        if missing:
+            raise RuntimeError("Configuración de seguridad faltante: " + ", ".join(missing))
+
+        return cls(**values)
