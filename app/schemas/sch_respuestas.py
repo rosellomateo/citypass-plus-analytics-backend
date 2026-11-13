@@ -4,6 +4,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.schemas.sch_espacios_cultura import EspacioCultura
+from app.schemas.sch_identidad import Identidad
 from app.schemas.sch_movilidad_urbana import Movilidad
 from app.schemas.sch_reclamos import Reclamo
 from app.schemas.sch_residuos import Residuo
@@ -56,3 +57,8 @@ class RespuestaResiduos(BaseModel):
 class RespuestaSeguridadEmergencias(BaseModel):
     datos: list[SeguridadEmergencia]
     informe: InformeAnalisis
+
+
+class RespuestaIdentidad(BaseModel):
+    datos: list[Identidad]
+    informe: InformeAnalisis | None

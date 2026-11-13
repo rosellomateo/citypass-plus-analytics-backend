@@ -19,7 +19,7 @@ def embed(
         "embed modulo=%s usuario=%s namespace=%s jti=%s",
         modulo,
         usuario["sub"],
-        usuario["namespace"],
+        usuario.get("namespace"),
         usuario["jti"],
     )
     return {"status": "ok"}

@@ -10,9 +10,10 @@ No se envía token de servicio ni X-Usuario-Token ni X-User-Token.
 Se valida firma RS256 mediante JWKS_URL, JWT_ISSUER exacto, token_use=human,
 ver=1 (entero), sub y jti no vacíos, iat y exp enteros válidos.
 Se conserva la tolerancia de reloj de 60 segundos y el User-Agent del cliente JWKS.
-El aud debe ser un string igual al indicado para el tablero solicitado o
-citypass-admin-api. Esta audiencia alternativa se admite en los cinco tableros;
-siempre se exige el namespace exacto del tablero solicitado. No implica un rol admin.
+En los cinco módulos de la tabla, aud debe ser un string con su propia audiencia.
+citypass-admin-api ya no se acepta como alternativa.
+GET /embed/identidad acepta citypass-admin-api como string o lista que lo incluya,
+sin validar namespace, groups ni module. Mantiene firma, emisor, fechas y token human.
 El namespace firmado del usuario determina a qué tablero puede acceder:
 
 | Módulo en la URL | aud | namespace |

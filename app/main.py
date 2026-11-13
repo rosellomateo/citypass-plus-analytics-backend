@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import CorsSettings
 from app.routers.rout_embed import router as embed_router
 from app.routers.rout_espacios_cultura import router as espacio_cultura_router
+from app.routers.rout_identidad import router as identidad_router
 from app.routers.rout_movilidad_urbana import router as movilidad_urbana_router
 from app.routers.rout_reclamos import router as reclamos_router
 from app.routers.rout_residuos import router as residuos_router
@@ -27,6 +28,7 @@ def create_app(cors_settings: CorsSettings | None = None) -> FastAPI:
             allow_headers=["Accept", "Content-Type", "Authorization"],
         )
 
+    application.include_router(identidad_router)
     application.include_router(embed_router)
     application.include_router(espacio_cultura_router)
     application.include_router(movilidad_urbana_router)

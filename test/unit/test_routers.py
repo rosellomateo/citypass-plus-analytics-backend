@@ -14,6 +14,17 @@ from app.schemas.sch_usuario_autenticado import UsuarioAutenticado
 class FakeParquetRepository:
     def __init__(self):
         self.data = {
+            "LDAP/autenticacion_resumen.parquet": pl.DataFrame(
+                [
+                    {
+                        "department": None,
+                        "username": "usuario-prueba",
+                        "event_type": "com.citypass.auth.LoginExitoso",
+                        "cantidadEventos": 3_000_000_000,
+                        "fecha_snapshot": date(2026, 11, 12),
+                    }
+                ]
+            ),
             "Reclamos/reclamos_resumen.parquet": pl.DataFrame(
                 [
                     {
@@ -102,6 +113,7 @@ class FakeParquetRepository:
 
 
 REPORT_FILES = {
+    "/analytics/identidad": "identidad.json",
     "/analytics/reclamos": "reclamos.json",
     "/analytics/seguridad-emergencias": "emergencias.json",
     "/analytics/movilidad-urbana": "movilidad.json",
@@ -162,6 +174,18 @@ def client(monkeypatch):
 @pytest.mark.parametrize(
     ("path", "expected"),
     [
+        (
+            "/analytics/identidad",
+            [
+                {
+                    "department": None,
+                    "username": "usuario-prueba",
+                    "event_type": "com.citypass.auth.LoginExitoso",
+                    "cantidadEventos": 3_000_000_000,
+                    "fecha_snapshot": "2026-11-12",
+                }
+            ],
+        ),
         (
             "/analytics/reclamos",
             [
@@ -264,6 +288,7 @@ def test_analytics_returns_json(
 @pytest.mark.parametrize(
     ("path", "schema"),
     [
+        ("/analytics/identidad", "Identidad"),
         ("/analytics/reclamos", "Reclamo"),
         ("/analytics/movilidad-urbana", "Movilidad"),
         ("/analytics/espacios-cultura", "EspacioCultura"),
@@ -288,7 +313,13 @@ def test_openapi_declares_response_contract(client: TestClient, path: str, schem
     assert properties["datos"]["items"]["$ref"] == f"#/components/schemas/{schema}"
 
     # La respuesta ahora también incluye el informe.
-    assert properties["informe"]["$ref"] == "#/components/schemas/InformeAnalisis"
+    if schema == "Identidad":
+        assert properties["informe"]["anyOf"] == [
+            {"$ref": "#/components/schemas/InformeAnalisis"},
+            {"type": "null"},
+        ]
+    else:
+        assert properties["informe"]["$ref"] == "#/components/schemas/InformeAnalisis"
 
 
 @pytest.mark.parametrize("path", REPORT_FILES)
@@ -312,6 +343,7 @@ def test_analytics_requires_bearer_token(client, path):
 
 
 MODULOS_POR_RUTA = {
+    "/analytics/identidad": "identidad",
     "/analytics/espacios-cultura": "espacios",
     "/analytics/movilidad-urbana": "movilidad",
     "/analytics/reclamos": "reclamos",
@@ -333,3 +365,19 @@ def test_module_and_permission_access(client, path, module, admin):
     )
     response = client.get(path)
     assert response.status_code == (200 if admin else 403)
+
+
+def test_identidad_without_report_returns_null(client):
+    from unittest.mock import Mock
+
+    from azure.core.exceptions import ResourceNotFoundError
+
+    reports = Mock()
+    error = ResourceNotFoundError()
+    error.error_code = "BlobNotFound"
+    reports.read.side_effect = error
+    app.dependency_overrides[obtener_repositorio_informes] = lambda: reports
+    response = client.get("/analytics/identidad")
+    assert response.status_code == 200
+    assert response.json()["informe"] is None
+    assert len(response.json()["datos"]) == 1

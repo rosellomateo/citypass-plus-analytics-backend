@@ -24,19 +24,19 @@ NAMESPACES_POR_MODULO = {
 AUDIENCIAS_POR_MODULO = {modulo: f"citypass-{modulo}-api" for modulo in NAMESPACES_POR_MODULO}
 
 
-AUDIENCIA_ADMIN = "citypass-admin-api"
+AUDIENCIAS_POR_MODULO["identidad"] = "citypass-admin-api"
 
 
 class HumanEmbedJWTValidator(JWTValidator):
     def validar_usuario(self, token: str) -> dict:
-        audiencias_permitidas = (self._settings.audience, AUDIENCIA_ADMIN)
+        es_identidad = self._settings.audience == AUDIENCIAS_POR_MODULO["identidad"]
         key = self._jwks_client.get_signing_key_from_jwt(token).key
         claims = jwt.decode(
             token,
             key,
             algorithms=["RS256"],
             issuer=self._settings.issuer,
-            audience=audiencias_permitidas,
+            audience=self._settings.audience,
             leeway=60,
             options={
                 "require": [
@@ -48,7 +48,7 @@ class HumanEmbedJWTValidator(JWTValidator):
                     "jti",
                     "token_use",
                     "ver",
-                    "namespace",
+                    *([] if es_identidad else ["namespace"]),
                 ]
             },
         )
@@ -57,11 +57,19 @@ class HumanEmbedJWTValidator(JWTValidator):
         if type(claims["ver"]) is not int or claims["ver"] != 1:
             raise jwt.InvalidTokenError("Versión inválida")
         aud = claims["aud"]
-        if not isinstance(aud, str) or aud not in audiencias_permitidas:
-            raise jwt.InvalidTokenError(
-                "aud debe ser un string con la audiencia del módulo o de admin"
-            )
-        for name in ("sub", "jti", "namespace"):
+        if es_identidad:
+            if not (
+                isinstance(aud, str)
+                and aud == self._settings.audience
+                or isinstance(aud, list)
+                and aud
+                and all(isinstance(value, str) and value for value in aud)
+                and self._settings.audience in aud
+            ):
+                raise jwt.InvalidTokenError("Audiencia de Identidad inválida")
+        elif not isinstance(aud, str) or aud != self._settings.audience:
+            raise jwt.InvalidTokenError("aud debe ser un string con la audiencia del módulo")
+        for name in ("sub", "jti", *([] if es_identidad else ["namespace"])):
             if not isinstance(claims[name], str) or not claims[name].strip():
                 raise jwt.InvalidTokenError(f"Claim {name} inválido")
         for name in ("iat", "exp"):
@@ -85,7 +93,7 @@ def autorizar_embed(
     modulo: str,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
 ) -> dict:
-    if modulo not in NAMESPACES_POR_MODULO:
+    if modulo not in AUDIENCIAS_POR_MODULO:
         raise HTTPException(404, "Módulo desconocido")
     if credentials is None:
         raise HTTPException(
@@ -99,6 +107,6 @@ def autorizar_embed(
         raise HTTPException(
             401, "Token inválido o expirado", headers={"WWW-Authenticate": "Bearer"}
         ) from None
-    if claims["namespace"] != NAMESPACES_POR_MODULO[modulo]:
+    if modulo in NAMESPACES_POR_MODULO and claims["namespace"] != NAMESPACES_POR_MODULO[modulo]:
         raise HTTPException(403, "El usuario no puede acceder a este módulo")
     return claims

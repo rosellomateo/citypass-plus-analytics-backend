@@ -48,7 +48,7 @@ def setup(monkeypatch):
             jti="test-id",
             token_use="human",
             ver=1,
-            namespace=embed_auth.NAMESPACES_POR_MODULO[module],
+            namespace=embed_auth.NAMESPACES_POR_MODULO.get(module),
         )
         claims.update(changes or {})
         if missing:
@@ -207,15 +207,13 @@ def test_admin_does_not_bypass_namespace(setup):
 
 @pytest.mark.parametrize("requested", sorted(embed_auth.NAMESPACES_POR_MODULO))
 @pytest.mark.parametrize("caller", sorted(embed_auth.NAMESPACES_POR_MODULO))
-def test_admin_audience_requires_matching_namespace(setup, requested, caller):
+def test_admin_audience_rejected_for_other_modules(setup, requested, caller):
     client, headers, _ = setup
     response = client.get(
         "/embed/" + requested,
         headers=headers(caller, changes={"aud": "citypass-admin-api"}),
     )
-    assert response.status_code == (200 if caller == requested else 403)
-    if response.status_code == 200:
-        assert response.json() == {"status": "ok"}
+    assert response.status_code == 401
 
 
 @pytest.mark.parametrize(
@@ -243,3 +241,57 @@ def test_admin_audience_invalid_signature(setup):
         headers=headers("reclamos", changes={"aud": "citypass-admin-api"}, bad_signature=True),
     )
     assert response.status_code == 401
+
+
+@pytest.mark.parametrize("aud", ["citypass-admin-api", ["citypass-admin-api"]])
+def test_identidad_without_namespace_or_groups(setup, aud):
+    client, headers, _ = setup
+    response = client.get(
+        "/embed/identidad", headers=headers("identidad", changes={"aud": aud}, missing="namespace")
+    )
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"aud": "citypass-reclamos-api"},
+        {"aud": ["citypass-analitica-api"]},
+        {"aud": []},
+        {"aud": ["citypass-admin-api", 1]},
+        {"token_use": "service"},
+        {"exp": 1},
+        {"iss": "https://otro"},
+    ],
+)
+def test_identidad_rejects_invalid_token(setup, changes):
+    client, headers, _ = setup
+    assert (
+        client.get(
+            "/embed/identidad", headers=headers("identidad", changes=changes, missing="namespace")
+        ).status_code
+        == 401
+    )
+
+
+def test_identidad_ignores_namespace(setup):
+    client, headers, _ = setup
+    assert (
+        client.get(
+            "/embed/identidad",
+            headers=headers(
+                "identidad",
+                changes={"aud": ["citypass-admin-api"], "namespace": "com.citypass.reclamos"},
+            ),
+        ).status_code
+        == 200
+    )
+
+
+def test_identidad_rejects_invalid_signature(setup):
+    client, headers, _ = setup
+    assert (
+        client.get("/embed/identidad", headers=headers("identidad", bad_signature=True)).status_code
+        == 401
+    )

@@ -167,6 +167,7 @@ def test_analytics_admin_and_audience(signed_token, audience, groups, expected):
     app.dependency_overrides[obtener_repositorio_informes] = FakeJsonRepository
     with TestClient(app) as client:
         for path in [
+            "identidad",
             "reclamos",
             "residuos",
             "movilidad-urbana",
