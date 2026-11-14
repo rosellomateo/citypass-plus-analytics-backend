@@ -329,7 +329,7 @@ def test_analytics_rejects_authenticated_user_without_admin(client, path):
     )
     response = client.get(path)
     assert response.status_code == 403
-    assert response.json() == {"detail": "Se requiere el grupo admin"}
+    assert response.json() == {"detail": "No tenés permiso para este tablero"}
 
 
 @pytest.mark.parametrize("path", REPORT_FILES)
@@ -354,7 +354,18 @@ MODULOS_POR_RUTA = {
 
 @pytest.mark.parametrize("path", MODULOS_POR_RUTA)
 @pytest.mark.parametrize(
-    "module", ["espacios", "movilidad", "reclamos", "residuos", "emergencias", "analitica"]
+    "module",
+    [
+        "espacios",
+        "movilidad",
+        "reclamos",
+        "residuos",
+        "emergencias",
+        "analitica",
+        "identidad",
+        "eda",
+        "dap",
+    ],
 )
 @pytest.mark.parametrize("admin", [False, True])
 def test_module_and_permission_access(client, path, module, admin):
@@ -364,7 +375,9 @@ def test_module_and_permission_access(client, path, module, admin):
         module=module,
     )
     response = client.get(path)
-    assert response.status_code == (200 if admin else 403)
+    assert response.status_code == (
+        200 if admin and module in {MODULOS_POR_RUTA[path], "analitica"} else 403
+    )
 
 
 def test_identidad_without_report_returns_null(client):

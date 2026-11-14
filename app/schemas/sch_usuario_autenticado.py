@@ -7,3 +7,4 @@ class UsuarioAutenticado(BaseModel):
     groups: list[str]
     module: str
     jti: str | None = None
+    expires_at: int | None = None

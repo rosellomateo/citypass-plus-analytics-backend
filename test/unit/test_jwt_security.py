@@ -23,7 +23,7 @@ def signed_token():
         "token_use": "human",
         "ver": 1,
         "groups": [],
-        "module": "reclamos",
+        "module": "analitica",
     }
     validator = JWTValidator(
         SecuritySettings(
@@ -49,7 +49,6 @@ def test_real_signature_and_claims(signed_token):
     [
         ("iss", "https://otro.test"),
         ("aud", "otra-api"),
-        ("aud", ["analytics"]),
         ("aud", []),
         ("aud", ""),
         ("aud", 123),
@@ -134,7 +133,7 @@ def test_requires_module_claim(signed_token):
 
 def test_preserves_module_claim(signed_token):
     validator, token, _, _ = signed_token
-    assert validator.validar(token).module == "reclamos"
+    assert validator.validar(token).module == "analitica"
 
 
 @pytest.mark.parametrize(
@@ -146,7 +145,7 @@ def test_preserves_module_claim(signed_token):
         ("citypass-analitica-api", ["Admin"], 403),
         ("citypass-analitica-api", [], 403),
         ("citypass-reclamos-api", ["admin"], 401),
-        ("citypass-admin-api", ["admin"], 401),
+        ("citypass-admin-api", ["admin"], 200),
     ],
 )
 def test_analytics_admin_and_audience(signed_token, audience, groups, expected):
@@ -178,3 +177,19 @@ def test_analytics_admin_and_audience(signed_token, audience, groups, expected):
                 "/analytics/" + path, headers={"Authorization": "Bearer " + token}
             )
             assert response.status_code == expected
+
+
+def test_session_accepts_documented_list_audience_and_limits_module(signed_token):
+    validator, _, key, claims = signed_token
+    claims.update(aud=["citypass-reclamos-api"], groups=["operadores"], module="reclamos")
+    token = jwt.encode(claims, key, algorithm="RS256", headers={"kid": "clave-prueba"})
+    app = create_app()
+    app.dependency_overrides[obtener_validador] = lambda: validator
+    with TestClient(app) as client:
+        headers = {"Authorization": f"Bearer {token}"}
+        response = client.get("/auth/session", headers=headers)
+        assert response.status_code == 200
+        assert response.json()["dashboards"] == ["claims"]
+        assert response.headers["cache-control"] == "no-store"
+        assert client.get("/analytics/emergencies/parte2", headers=headers).status_code == 403
+        assert client.get("/auth/session").status_code == 401

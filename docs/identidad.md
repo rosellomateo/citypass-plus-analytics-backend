@@ -1,8 +1,8 @@
 # Analítica de Identidad
 
 GET /analytics/identidad devuelve datos e informe, como los demás módulos.
-Requiere Authorization: Bearer <token human>, audiencia de Analítica configurada
-con JWT_AUDIENCE y grupo admin. Utiliza los repositorios compartidos de Azure.
+Requiere Authorization: Bearer <token human> con permiso para el tablero Login.
+Utiliza los repositorios compartidos de Azure.
 
 Ubicaciones asumidas, pendientes de confirmar con el productor:
 - Parquet en el contenedor de datos: LDAP/autenticacion_resumen.parquet.
