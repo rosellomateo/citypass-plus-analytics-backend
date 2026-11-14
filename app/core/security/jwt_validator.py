@@ -1,3 +1,5 @@
+from time import time
+
 import jwt
 from jwt import PyJWKClient
 
@@ -26,6 +28,7 @@ class JWTValidator:
             algorithms=["RS256"],
             issuer=self._settings.issuer,
             audience=set().union(*audiences.values()),
+            leeway=15,
             options={
                 "require": ["iss", "sub", "aud", "exp", "token_use", "ver", "groups", "module"]
             },
@@ -54,8 +57,8 @@ class JWTValidator:
         ):
             raise jwt.InvalidTokenError("El claim groups debe ser una lista de strings")
 
-        if type(claims["exp"]) is not int:
-            raise jwt.InvalidTokenError("Vencimiento inválido")
+        if type(claims["exp"]) is not int or claims["exp"] <= time():
+            raise jwt.ExpiredSignatureError("Vencimiento inválido")
 
         username = claims.get("preferred_username")
         jti = claims.get("jti")

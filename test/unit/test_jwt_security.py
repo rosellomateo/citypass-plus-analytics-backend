@@ -193,3 +193,23 @@ def test_session_accepts_documented_list_audience_and_limits_module(signed_token
         assert response.headers["cache-control"] == "no-store"
         assert client.get("/analytics/emergencies/parte2", headers=headers).status_code == 403
         assert client.get("/auth/session").status_code == 401
+
+
+def test_login_alias_and_observed_claim_roles_are_scoped():
+    from app.core.security.permissions import allowed_dashboards, canonical_module
+
+    assert allowed_dashboards(canonical_module("dap"), ["admin"]) == ["login"]
+    assert allowed_dashboards("reclamos", ["soporte-n2", "guardia-finde"]) == ["claims"]
+    assert allowed_dashboards("eda", ["soporte-n2"]) == []
+    assert len(allowed_dashboards("analitica", ["admin"])) == 8
+
+
+def test_small_clock_skew_does_not_accept_expired_token(signed_token):
+    validator, _, key, claims = signed_token
+    claims["iat"] = datetime.now(UTC) + timedelta(seconds=8)
+    token = jwt.encode(claims, key, algorithm="RS256", headers={"kid": "clave-prueba"})
+    assert validator.validar(token).module == "analitica"
+    claims["exp"] = datetime.now(UTC) - timedelta(seconds=1)
+    expired = jwt.encode(claims, key, algorithm="RS256", headers={"kid": "clave-prueba"})
+    with pytest.raises(jwt.ExpiredSignatureError):
+        validator.validar(expired)
