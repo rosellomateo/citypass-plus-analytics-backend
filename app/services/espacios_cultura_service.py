@@ -8,15 +8,8 @@ def obtener_analitica_espacios(
     repositorio: AzureParquetRepository,
     repositorio_informes: AzureJsonRepository,
 ) -> RespuestaEspaciosCultura:
-    df = repositorio.read("Espacios Publicos y Cultura/reservas_resumen.parquet")
-
-    espacios = []
-
-    # Se crea una lista de diccionarios y se valida que cada uno cumpla con el schema,
-    # de ser asi se lo agrega a la lista de reclamos y se las retorna
-    for fila in df.to_dicts():
-        espacio = EspacioCultura.model_validate(fila)
-        espacios.append(espacio)
+    df = repositorio.read("Espacios Publicos y Cultura/actividades_resumen.parquet")
+    espacios = [EspacioCultura.model_validate(fila) for fila in df.to_dicts()]
 
     contenido_json = repositorio_informes.read("espacios.json")
     informe = InformeAnalisis.model_validate(contenido_json)
