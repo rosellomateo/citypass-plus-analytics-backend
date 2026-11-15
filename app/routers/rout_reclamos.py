@@ -2,9 +2,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
+from app.core.conexion import obtener_repositorio, obtener_repositorio_informes
+from app.core.security.dependencies import requerir_admin
 from app.repositories.analisis_repository import AzureJsonRepository
 from app.repositories.parquet_repository import AzureParquetRepository
-from app.routers.conexion import obtener_repositorio, obtener_repositorio_informes
 from app.schemas.sch_respuestas import RespuestaReclamos
 from app.services.reclamos_service import obtener_analitica_reclamos
 
@@ -14,9 +15,14 @@ router = APIRouter(
 )
 
 
-@router.get("", response_model=RespuestaReclamos)
+@router.get(
+    "",
+    response_model=RespuestaReclamos,
+    dependencies=[Depends(requerir_admin)],
+)
+
 # En el parametro del def se le dice a FastApi "devolveme un objeto de tipo AzureParquetRepository,
-# al ejecutar esta funión"
+# al ejecutar esta función"
 def listar_reclamos(
     repositorio: Annotated[
         AzureParquetRepository,

@@ -9,6 +9,7 @@ class Reclamo(BaseModel):
     prioridad: str | None
     origenClasificacion: str | None
     estado_actual: str | None
+    causaTipo: str | None
     row_count: int | None
     tiempo_prom_hasta_estado_actual: float | None
     fecha_snapshot: datetime | None

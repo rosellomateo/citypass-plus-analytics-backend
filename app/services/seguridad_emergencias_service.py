@@ -13,7 +13,7 @@ def obtener_analitica_emergencias(
     emergencias = []
 
     # Se crea una lista de diccionarios y se valida que cada uno cumpla con el schema,
-    # de ser asi se lo agrega a la lista de reclamos y se las retorna
+    # de ser así se agrega a la lista de emergencias
     for fila in df.to_dicts():
         emergencia = SeguridadEmergencia.model_validate(fila)
         emergencias.append(emergencia)
