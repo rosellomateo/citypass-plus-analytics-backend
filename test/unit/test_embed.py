@@ -10,10 +10,15 @@ from jwt.exceptions import PyJWKClientConnectionError
 from app.core.config import SecuritySettings
 from app.core.security import embed_auth
 from app.main import create_app
+from app.routers import rout_embed
 
 
 @pytest.fixture
 def setup(monkeypatch):
+    # Estas pruebas verifican JWT/audiencia/namespace sin depender de Azure ni de datos.
+    renderer = Mock()
+    renderer.render.return_value = "<!doctype html><html><body>Tablero</body></html>"
+    monkeypatch.setattr(rout_embed, "obtener_servicio_embed", lambda: renderer)
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     validator = embed_auth.HumanEmbedJWTValidator(
         SecuritySettings(
@@ -66,12 +71,13 @@ def setup(monkeypatch):
 
 
 @pytest.mark.parametrize("module", sorted(embed_auth.NAMESPACES_POR_MODULO))
-def test_human_ok_without_groups_module_or_storage(setup, module, monkeypatch):
+def test_human_ok_without_groups_or_module(setup, module, monkeypatch):
     client, headers, _ = setup
     monkeypatch.delenv("EMBED_PLANTILLA", raising=False)
     r = client.get("/embed/" + module, headers=headers(module))
     assert r.status_code == 200
-    assert r.json() == {"status": "ok"}
+    assert r.headers["content-type"] == "text/html; charset=utf-8"
+    assert "Tablero" in r.text
     assert r.headers["cache-control"] == "private, no-store"
 
 
