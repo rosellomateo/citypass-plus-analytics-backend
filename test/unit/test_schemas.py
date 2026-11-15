@@ -11,32 +11,36 @@ from app.schemas.sch_seguridad_emergencias import SeguridadEmergencia
 
 
 def test_validates_espacios_cultura_response() -> None:
-    fecha = datetime(2026, 9, 21, 10, 30)
+    fecha = date(2026, 11, 15)
 
     espacio = EspacioCultura(
-        recursoId="REC-001",
-        tipoReserva="Presencial",
-        categoria="Cultura",
-        zona="Centro",
-        cupoMaximo=100.0,
-        cantidadTotal=80,
-        cantidadConfirmadas=70,
-        cantidadCanceladas=10,
-        inscriptos=75,
-        pctOcupacion=75.0,
+        estado_actual="SUSPENDIDA",
+        categoria="CULTURAL",
+        causaTipo="EVENTO_CLIMATICO",
+        organizadorTipo="MUNICIPIO",
+        barrio="Centro",
+        cantidadActividades=12,
+        cantidadMasivas=5,
+        cantidadAfectadasPorClima=12,
+        totalVecesEventoClimatico=15,
+        totalVecesReclamo=3,
+        totalVecesIncidenteVial=2,
+        totalVecesAccidenteVial=1,
         fecha_snapshot=fecha,
     )
 
-    assert espacio.recursoId == "REC-001"
-    assert espacio.tipoReserva == "Presencial"
-    assert espacio.categoria == "Cultura"
-    assert espacio.zona == "Centro"
-    assert espacio.cupoMaximo == 100.0
-    assert espacio.cantidadTotal == 80
-    assert espacio.cantidadConfirmadas == 70
-    assert espacio.cantidadCanceladas == 10
-    assert espacio.inscriptos == 75
-    assert espacio.pctOcupacion == 75.0
+    assert espacio.estado_actual == "SUSPENDIDA"
+    assert espacio.categoria == "CULTURAL"
+    assert espacio.causaTipo == "EVENTO_CLIMATICO"
+    assert espacio.organizadorTipo == "MUNICIPIO"
+    assert espacio.barrio == "Centro"
+    assert espacio.cantidadActividades == 12
+    assert espacio.cantidadMasivas == 5
+    assert espacio.cantidadAfectadasPorClima == 12
+    assert espacio.totalVecesEventoClimatico == 15
+    assert espacio.totalVecesReclamo == 3
+    assert espacio.totalVecesIncidenteVial == 2
+    assert espacio.totalVecesAccidenteVial == 1
     assert espacio.fecha_snapshot == fecha
 
 

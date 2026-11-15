@@ -38,7 +38,7 @@ flowchart LR
 | Reclamos | `Reclamos/reclamos_resumen.parquet` |
 | Seguridad y emergencias | `Emergencias y Seguridad/emergencias_resumen.parquet` |
 | Movilidad urbana | `Movilidad Urbana/viajes_resumen.parquet` |
-| Espacios públicos y cultura | `Espacios Publicos y Cultura/reservas_resumen.parquet` |
+| Espacios públicos y cultura | `Espacios Publicos y Cultura/actividades_resumen.parquet` |
 | Residuos | `Gestion de Residuos Inteligente/alertas_resumen.parquet` |
 
 El endpoint de eventos es temporal y devuelve un objeto de prueba; todavía no
