@@ -1,5 +1,11 @@
 # Configuración
 
+La entrega HTML de `/embed/{modulo}` requiere una release del frontend en Blob y
+las variables `EMBED_STORAGE_ACCOUNT_URL`, `EMBED_RELEASE_SHA` y, opcionalmente,
+`EMBED_STORAGE_CONTAINER`, `EMBED_CACHE_TTL_SEGUNDOS` y
+`EMBED_MANAGED_IDENTITY_CLIENT_ID`. Ver [Embed desde Blob](embed.md) para configurar
+la identidad del backend, los permisos y la versión de la plantilla.
+
 La aplicación usa variables de entorno. Para desarrollo local, copiar el archivo
 de ejemplo y completar únicamente valores locales:
 

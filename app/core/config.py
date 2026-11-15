@@ -1,4 +1,5 @@
 import os
+import re
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
@@ -110,3 +111,58 @@ class SecuritySettings:
             raise RuntimeError("Configuración de seguridad faltante: " + ", ".join(missing))
 
         return cls(**values)
+
+
+@dataclass(frozen=True, slots=True)
+class EmbedSettings:
+    account_url: str
+    release_sha: str
+    container_name: str = "plantillas"
+    cache_ttl_seconds: int = 600
+    managed_identity_client_id: str | None = None
+    max_template_bytes: int = 5 * 1024 * 1024
+
+    @property
+    def release_prefix(self) -> str:
+        return f"releases/{self.release_sha}"
+
+    @classmethod
+    def from_environment(cls) -> "EmbedSettings":
+        account_url = os.getenv("EMBED_STORAGE_ACCOUNT_URL", "").strip().rstrip("/")
+        parsed = urlparse(account_url)
+        if (
+            parsed.scheme != "https"
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path
+            or parsed.params
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ConfigurationError("EMBED_STORAGE_ACCOUNT_URL debe ser una URL base HTTPS")
+
+        release = os.getenv("EMBED_RELEASE_SHA", "").strip()
+        if not re.fullmatch(r"[a-f0-9]{40}", release):
+            raise ConfigurationError("EMBED_RELEASE_SHA debe ser el SHA completo del frontend")
+
+        container = os.getenv("EMBED_STORAGE_CONTAINER", "plantillas").strip()
+        if not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{1,61})[a-z0-9]", container) or "--" in container:
+            raise ConfigurationError("EMBED_STORAGE_CONTAINER debe ser un contenedor válido")
+
+        try:
+            ttl = int(os.getenv("EMBED_CACHE_TTL_SEGUNDOS", "600"))
+        except ValueError:
+            raise ConfigurationError("EMBED_CACHE_TTL_SEGUNDOS debe ser un entero") from None
+        if not 0 <= ttl <= 86400:
+            raise ConfigurationError("EMBED_CACHE_TTL_SEGUNDOS debe estar entre 0 y 86400")
+
+        return cls(
+            account_url=account_url,
+            container_name=container,
+            release_sha=release,
+            cache_ttl_seconds=ttl,
+            managed_identity_client_id=(
+                os.getenv("EMBED_MANAGED_IDENTITY_CLIENT_ID", "").strip() or None
+            ),
+        )
