@@ -190,6 +190,7 @@ def test_session_accepts_documented_list_audience_and_limits_module(signed_token
         response = client.get("/auth/session", headers=headers)
         assert response.status_code == 200
         assert response.json()["dashboards"] == ["claims"]
+        assert response.json()["initial_dashboard"] == "claims"
         assert response.headers["cache-control"] == "no-store"
         assert client.get("/analytics/emergencies/parte2", headers=headers).status_code == 403
         assert client.get("/auth/session").status_code == 401
