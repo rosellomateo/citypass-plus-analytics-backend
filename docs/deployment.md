@@ -8,7 +8,7 @@ El repositorio contiene tres workflows:
 | --- | --- | --- |
 | `.github/workflows/ci.yml` | Push o pull request a `main` y `develop` | Formato, lint, pruebas, validación de Compose, build de producción y smoke test de `/health`. |
 | `.github/workflows/develop_rg-citypass-backend-test.yml` | Push a `develop` o ejecución manual | Publica la imagen en GHCR, despliega el contenedor de test y verifica `/health`. |
-| `.github/workflows/deploy-production.yml` | Push a `main` o ejecución manual | Publica la imagen en GHCR, despliega el contenedor productivo y valida la conexión Gold. |
+| `.github/workflows/deploy-production.yml` | Push a `main` o ejecución manual | Publica la imagen en GHCR, despliega el contenedor productivo, comprueba `/health` y verifica el rechazo de requests sin JWT. |
 
 ## Entorno de test
 
@@ -99,7 +99,9 @@ repo:rosellomateo/citypass-plus-analytics-backend:environment:production
 5. El workflow configura GHCR y el puerto del contenedor en la Web App.
 6. App Service descarga la imagen etiquetada con el SHA del commit.
 7. El pipeline de test comprueba `/health`. El de producción comprueba `/health`
-   y `/analytics/residuos`.
+   y que `/analytics/residuos` y `/embed/reclamos` devuelvan `401` sin token.
+   La lectura real de Gold se verifica por separado con un JWT válido; el pipeline
+   no almacena ni obtiene tokens de usuario para el smoke test.
 
 `GITHUB_TOKEN` se usa solamente para publicar desde el workflow. La Web App usa
 `GHCR_PULL_TOKEN` porque necesita descargar la imagen después de que el job haya
@@ -130,7 +132,7 @@ productivos.
 - [ ] `/health` responde `200`.
 - [ ] Las rutas de analítica leen la capa Gold.
 - [ ] Los secretos no aparecen en commits ni logs.
-- [ ] Se reconoce que autenticación/autorización todavía está pendiente.
+- [ ] Las rutas protegidas rechazan requests sin JWT; la prueba funcional usa un token válido.
 
 ## Rollback
 
