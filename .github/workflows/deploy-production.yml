@@ -125,6 +125,30 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_6482AAF165B249D0AF8F3E2FED23F896 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_B5BDDA8BC43B46808B5ABBC85F0E702C }}
 
+      - name: Verify runtime authentication configuration
+        env:
+          AZURE_WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          SECURITY_SETTINGS_JSON="$(az webapp config appsettings list \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_WEBAPP_NAME" \
+            --query "[?name=='JWT_ISSUER' || name=='JWT_AUDIENCE'].{name:name,value:value}" \
+            --output json)"
+          export SECURITY_SETTINGS_JSON
+          python3 - <<'PY'
+          import json
+          import os
+
+          settings = {item['name']: item['value'] for item in json.loads(os.environ['SECURITY_SETTINGS_JSON'])}
+          missing = [name for name in ('JWT_ISSUER', 'JWT_AUDIENCE') if not (settings.get(name) or '').strip()]
+          if missing:
+              print('::error::Missing App Service runtime settings: ' + ', '.join(missing))
+              print('Configure these in Azure Web App > Environment variables, not only in GitHub.')
+              raise SystemExit(1)
+          print('Required runtime authentication settings are configured; values omitted.')
+          PY
+
       - name: Configure private registry and container port
         env:
           AZURE_WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
@@ -159,6 +183,7 @@ jobs:
         run: |
           base_url="${BACKEND_PUBLIC_URL%/}"
           curl --fail --silent --show-error \
+            --connect-timeout 5 --max-time 15 \
             --retry 18 --retry-all-errors --retry-delay 10 \
             "${base_url}/health"
 
@@ -167,14 +192,28 @@ jobs:
           BACKEND_PUBLIC_URL: ${{ vars.BACKEND_PUBLIC_URL }}
         run: |
           base_url="${BACKEND_PUBLIC_URL%/}"
-          for path in /analytics/residuos /embed/reclamos; do
-            status_code="$(curl --silent --show-error --output /dev/null \
-              --write-out '%{http_code}' "${base_url}${path}")"
-            if [[ "$status_code" != '401' ]]; then
-              echo "Expected HTTP 401 without a token at ${path}; received ${status_code}" >&2
-              exit 1
+          for attempt in {1..12}; do
+            ready=true
+            # Check the new embed route first to avoid loading Gold in the old container.
+            for path in /embed/reclamos /analytics/residuos; do
+              status_code="$(curl --silent --show-error --output /dev/null \
+                --connect-timeout 5 --max-time 10 \
+                --header 'Cache-Control: no-cache' \
+                --write-out '%{http_code}' "${base_url}${path}")" || status_code='transport-error'
+              if [[ "$status_code" != '401' ]]; then
+                echo "Attempt ${attempt}/12: expected HTTP 401 without a token at ${path}; received ${status_code}" >&2
+                ready=false
+                break
+              fi
+            done
+            if [[ "$ready" == 'true' ]]; then
+              echo 'Both protected endpoints reject anonymous requests with HTTP 401.'
+              exit 0
             fi
+            if [[ "$attempt" -lt 12 ]]; then sleep 10; fi
           done
+          echo 'Protected endpoints did not become ready. Check the container startup logs and runtime configuration in Azure.' >&2
+          exit 1
 
       - name: Log out from Azure
         if: always()
