@@ -269,7 +269,8 @@ def test_identidad_without_namespace_or_groups(setup, aud):
         "/embed/identidad", headers=headers("identidad", changes={"aud": aud}, missing="namespace")
     )
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.headers["content-type"] == "text/html; charset=utf-8"
+    assert "Tablero" in response.text
 
 
 @pytest.mark.parametrize(

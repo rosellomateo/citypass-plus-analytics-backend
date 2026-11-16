@@ -57,9 +57,11 @@ Si una variable falta o la URL no es HTTPS, la consulta de analítica falla con 
 error de configuración. Si el SAS expiró o no tiene permisos, Azure rechazará la
 operación.
 
-## Seguridad pendiente
+## Autenticación e indicadores adicionales
 
-No hay middleware de autenticación, validación JWT ni autorización por roles.
-Enviar un encabezado `Authorization` actualmente no modifica el comportamiento
-de la API. La integración con el proveedor de identidad debe implementarse antes
-de publicar datos sensibles.
+Las rutas `/analytics/*` validan JWT human por JWKS, emisor, audiencia configurada
+y grupo `admin`. `/embed/*` conserva sus reglas por audiencia y namespace.
+
+Los endpoints `/analytics/{area}/parte2` usan la conexión Gold existente; no
+requieren nuevas variables obligatorias. Las fuentes, el contrato y las opciones
+`PART2_EVENTS_BLOB` y `PART2_EVENTS_URL` se describen en [Parte 2](parte2.md).

@@ -2,7 +2,7 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 
 from app.core.embed import obtener_servicio_embed
 from app.core.security.embed_auth import autorizar_embed
@@ -28,8 +28,7 @@ CABECERAS = {
     response_model=None,
     responses={
         200: {
-            "description": "Tablero HTML; identidad conserva su prueba de autenticación JSON",
-            "content": {"application/json": {"example": {"status": "ok"}}},
+            "description": "Tablero HTML con datos e informe del módulo",
         },
         401: {"description": "Token ausente o inválido"},
         403: {"description": "Namespace no autorizado"},
@@ -37,23 +36,15 @@ CABECERAS = {
         503: {"description": "Autenticación, plantilla o datos no disponibles"},
     },
 )
-def embed(
-    modulo: str, usuario: Annotated[dict, Depends(autorizar_embed)]
-) -> HTMLResponse | JSONResponse:
+def embed(modulo: str, usuario: Annotated[dict, Depends(autorizar_embed)]) -> HTMLResponse:
     """Autoriza cada request y entrega el tablero del módulo con datos incluidos."""
-    if modulo == "identidad":
-        # El paquete actual del frontend contiene solo los otros cinco módulos.
-        response = JSONResponse({"status": "ok"}, headers=CABECERAS)
-    else:
-        try:
-            html = obtener_servicio_embed().render(modulo)
-        except EmbedUnavailableError as error:
-            # No registrar URLs de Storage, credenciales ni datos de los usuarios.
-            log.error(
-                "embed no disponible modulo=%s causa=%s", modulo, type(error.__cause__).__name__
-            )
-            raise HTTPException(503, "Analítica no disponible", headers=CABECERAS) from None
-        response = HTMLResponse(html, headers=CABECERAS)
+    try:
+        html = obtener_servicio_embed().render(modulo)
+    except EmbedUnavailableError as error:
+        # No registrar URLs de Storage, credenciales ni datos de los usuarios.
+        log.error("embed no disponible modulo=%s causa=%s", modulo, type(error.__cause__).__name__)
+        raise HTTPException(503, "Analítica no disponible", headers=CABECERAS) from None
+    response = HTMLResponse(html, headers=CABECERAS)
 
     log.info(
         "embed modulo=%s usuario=%s namespace=%s jti=%s",

@@ -11,7 +11,8 @@ from azure.storage.blob import ContainerClient
 
 from app.core.config import EmbedSettings
 
-MODULOS_EMBED = frozenset({"reclamos", "emergencias", "movilidad", "espacios", "residuos"})
+MODULOS_EMBED_BASE = frozenset({"reclamos", "emergencias", "movilidad", "espacios", "residuos"})
+MODULOS_EMBED = MODULOS_EMBED_BASE | {"identidad"}
 MARCADOR_MODULO = "__CITYPASS_MODULO__"
 MARCADOR_DATOS = "__CITYPASS_DATOS__"
 
@@ -23,6 +24,10 @@ class InvalidEmbedRelease(ValueError):
 class EmbedTemplateRepository:
     def __init__(self, settings: EmbedSettings) -> None:
         self._settings = settings
+        self._supported_modules: frozenset[str] = frozenset()
+
+    def supports_module(self, modulo: str) -> bool:
+        return modulo in self._supported_modules
 
     @contextmanager
     def _open_container(self) -> Iterator[ContainerClient]:
@@ -78,7 +83,8 @@ class EmbedTemplateRepository:
                 or manifest.get("template") != "embed.html"
                 or not isinstance(manifest.get("modules"), list)
                 or not all(isinstance(module, str) for module in manifest["modules"])
-                or set(manifest["modules"]) != MODULOS_EMBED
+                or not MODULOS_EMBED_BASE <= set(manifest["modules"]) <= MODULOS_EMBED
+                or len(manifest["modules"]) != len(set(manifest["modules"]))
             ):
                 raise InvalidEmbedRelease("El manifiesto no describe la release configurada")
 
@@ -95,4 +101,5 @@ class EmbedTemplateRepository:
         template = html_bytes.decode("utf-8")
         if template.count(MARCADOR_MODULO) != 1 or template.count(MARCADOR_DATOS) != 1:
             raise InvalidEmbedRelease("El HTML no contiene los marcadores de inyección esperados")
+        self._supported_modules = frozenset(manifest["modules"])
         return template
