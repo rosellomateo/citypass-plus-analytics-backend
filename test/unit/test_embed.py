@@ -46,7 +46,7 @@ def setup(monkeypatch):
         now = int(datetime.now(UTC).timestamp())
         claims = dict(
             iss="https://idp.citypass.local",
-            aud=embed_auth.AUDIENCIAS_POR_MODULO[module],
+            aud=[embed_auth.AUDIENCIAS_POR_MODULO[module]],
             sub="U000012",
             iat=now,
             exp=now + 900,
@@ -88,6 +88,12 @@ def test_human_ok_without_groups_or_module(setup, module, monkeypatch):
         {"aud": ["citypass-analitica-api"]},
         {"aud": []},
         {"aud": ["citypass", 1]},
+        {"aud": ["citypass-emergencias-api", 1]},
+        {"aud": ["citypass-emergencias-api", ""]},
+        {"aud": ["citypass-emergencias-api", " "]},
+        {"aud": ["citypass-emergencias-api-extra"]},
+        {"aud": None},
+        {"aud": {}},
         {"token_use": "service"},
         {"ver": True},
         {"ver": 2},
@@ -145,15 +151,21 @@ def test_jwks_unavailable(setup):
     assert client.get("/embed/emergencias", headers=headers()).status_code == 503
 
 
-def test_array_audience_rejected(setup):
+@pytest.mark.parametrize("module", sorted(embed_auth.NAMESPACES_POR_MODULO))
+@pytest.mark.parametrize("format", ["ldap-list", "multiple-audiences", "legacy-string"])
+def test_accepts_exact_module_audience_in_ldap_list_and_legacy_string(setup, module, format):
     client, headers, _ = setup
-    assert (
-        client.get(
-            "/embed/emergencias",
-            headers=headers(changes={"aud": ["otra", "citypass-emergencias-api"]}),
-        ).status_code
-        == 401
+    audience = embed_auth.AUDIENCIAS_POR_MODULO[module]
+    values = {
+        "ldap-list": [audience],
+        "multiple-audiences": ["otra-api", audience],
+        "legacy-string": audience,
+    }
+    response = client.get(
+        f"/embed/{module}", headers=headers(module, changes={"aud": values[format]})
     )
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/html; charset=utf-8"
 
 
 def test_service_rejected_by_analytics(setup, monkeypatch):
@@ -173,7 +185,7 @@ def test_service_rejected_by_analytics(setup, monkeypatch):
             "/analytics/seguridad-emergencias",
             headers=headers(
                 changes={
-                    "aud": "citypass-analitica-api",
+                    "aud": ["citypass-analitica-api"],
                     "groups": ["admin"],
                     "token_use": "service",
                     "module": "emergencias",
@@ -191,7 +203,7 @@ def test_audience_bound_to_route(setup, requested, caller):
     client, headers, _ = setup
     response = client.get(
         "/embed/" + requested,
-        headers=headers(requested, changes={"aud": embed_auth.AUDIENCIAS_POR_MODULO[caller]}),
+        headers=headers(requested, changes={"aud": [embed_auth.AUDIENCIAS_POR_MODULO[caller]]}),
     )
     assert response.status_code == (200 if caller == requested else 401)
 
@@ -202,6 +214,7 @@ def test_admin_does_not_bypass_namespace(setup):
         "/embed/emergencias",
         headers=headers(
             changes={
+                "aud": ["citypass-analitica-api", "citypass-emergencias-api"],
                 "namespace": "com.citypass.analitica",
                 "groups": ["admin"],
                 "module": "analitica",
@@ -217,7 +230,7 @@ def test_admin_audience_rejected_for_other_modules(setup, requested, caller):
     client, headers, _ = setup
     response = client.get(
         "/embed/" + requested,
-        headers=headers(caller, changes={"aud": "citypass-admin-api"}),
+        headers=headers(caller, changes={"aud": ["citypass-admin-api"]}),
     )
     assert response.status_code == 401
 
