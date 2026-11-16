@@ -15,8 +15,12 @@ Authorization: Bearer <access_token_human>
 
 Se conserva la política actual de `develop`: firma RS256 mediante `JWKS_URL`,
 `JWT_ISSUER` exacto, `token_use=human`, `ver=1` entero, `sub` y `jti` no vacíos,
-`iat` y `exp` enteros válidos y tolerancia de reloj de 60 segundos. En estos cinco
-módulos, `aud` debe ser un string con la audiencia exacta de la tabla.
+`iat` y `exp` enteros válidos y tolerancia de reloj de 60 segundos. Según el contrato
+LDAP, `aud` es una lista no vacía de strings y debe contener la audiencia exacta
+de la tabla. Por compatibilidad también se acepta el string exacto de los tokens
+anteriores. Se rechazan listas con elementos vacíos o de otros tipos. La misma
+validación de formato se usa en `/analytics/*`, con la audiencia configurada en
+`JWT_AUDIENCE`; los permisos de cada ruta se mantienen.
 
 | Módulo | aud | namespace |
 | --- | --- | --- |

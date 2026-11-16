@@ -18,7 +18,7 @@ def signed_token():
     claims = {
         "sub": "usuario-prueba",
         "iss": "https://identidad.test",
-        "aud": "analytics",
+        "aud": ["analytics"],
         "exp": datetime.now(UTC) + timedelta(minutes=5),
         "token_use": "human",
         "ver": 1,
@@ -49,8 +49,14 @@ def test_real_signature_and_claims(signed_token):
     [
         ("iss", "https://otro.test"),
         ("aud", "otra-api"),
-        ("aud", ["analytics"]),
+        ("aud", ["otra-api"]),
         ("aud", []),
+        ("aud", ["analytics", ""]),
+        ("aud", ["analytics", " "]),
+        ("aud", ["analytics", 123]),
+        ("aud", ["analytics-extra"]),
+        ("aud", None),
+        ("aud", {}),
         ("aud", ""),
         ("aud", 123),
         ("aud", "analytics-extra"),
@@ -76,6 +82,14 @@ def test_rejects_invalid_signature(signed_token):
     token = jwt.encode(claims, other_key, algorithm="RS256", headers={"kid": "clave-prueba"})
     with pytest.raises(jwt.InvalidSignatureError):
         validator.validar(token)
+
+
+@pytest.mark.parametrize("aud", ["analytics", ["analytics"], ["otra-api", "analytics"]])
+def test_accepts_exact_audience_in_ldap_list_and_legacy_string(signed_token, aud):
+    validator, _, key, claims = signed_token
+    claims["aud"] = aud
+    token = jwt.encode(claims, key, algorithm="RS256", headers={"kid": "clave-prueba"})
+    assert validator.validar(token).sub == "usuario-prueba"
 
 
 def test_each_request_validates_token(signed_token):
@@ -140,13 +154,16 @@ def test_preserves_module_claim(signed_token):
 @pytest.mark.parametrize(
     "audience,groups,expected",
     [
+        (["citypass-analitica-api"], ["admin"], 200),
+        (["citypass-analitica-api"], ["delegados", "admin"], 200),
+        (["citypass-analitica-api"], ["reclamos"], 403),
+        (["citypass-analitica-api"], ["Admin"], 403),
+        (["citypass-analitica-api"], [], 403),
+        (["citypass-reclamos-api"], ["admin"], 401),
+        (["citypass-admin-api"], ["admin"], 401),
+        (["citypass-reclamos-api", "citypass-analitica-api"], ["admin"], 200),
+        (["citypass-reclamos-api", "citypass-analitica-api"], [], 403),
         ("citypass-analitica-api", ["admin"], 200),
-        ("citypass-analitica-api", ["delegados", "admin"], 200),
-        ("citypass-analitica-api", ["reclamos"], 403),
-        ("citypass-analitica-api", ["Admin"], 403),
-        ("citypass-analitica-api", [], 403),
-        ("citypass-reclamos-api", ["admin"], 401),
-        ("citypass-admin-api", ["admin"], 401),
     ],
 )
 def test_analytics_admin_and_audience(signed_token, audience, groups, expected):
