@@ -1,17 +1,21 @@
-from datetime import datetime
+from datetime import date
 
 from pydantic import BaseModel
 
 
 class EspacioCultura(BaseModel):
-    recursoId: str | None
-    tipoReserva: str | None
+    """Agregado de actividades de la capa Gold, sin métricas de reservas."""
+
+    estado_actual: str | None
     categoria: str | None
-    zona: str | None
-    cupoMaximo: float | None
-    cantidadTotal: int | None
-    cantidadConfirmadas: int | None
-    cantidadCanceladas: int | None
-    inscriptos: int | None
-    pctOcupacion: float | None
-    fecha_snapshot: datetime | None
+    causaTipo: str | None
+    organizadorTipo: str | None
+    barrio: str | None
+    cantidadActividades: int | None
+    cantidadMasivas: int | None
+    cantidadAfectadasPorClima: int | None
+    totalVecesEventoClimatico: int | None
+    totalVecesReclamo: int | None
+    totalVecesIncidenteVial: int | None
+    totalVecesAccidenteVial: int | None
+    fecha_snapshot: date | None

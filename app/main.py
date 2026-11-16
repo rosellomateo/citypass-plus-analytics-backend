@@ -6,6 +6,7 @@ from app.routers.rout_embed import router as embed_router
 from app.routers.rout_espacios_cultura import router as espacio_cultura_router
 from app.routers.rout_identidad import router as identidad_router
 from app.routers.rout_movilidad_urbana import router as movilidad_urbana_router
+from app.routers.rout_parte2 import router as parte2_router
 from app.routers.rout_reclamos import router as reclamos_router
 from app.routers.rout_residuos import router as residuos_router
 from app.routers.rout_seguridad_emergencias import router as seguridad_emergencias_router
@@ -35,6 +36,7 @@ def create_app(cors_settings: CorsSettings | None = None) -> FastAPI:
     application.include_router(reclamos_router)
     application.include_router(residuos_router)
     application.include_router(seguridad_emergencias_router)
+    application.include_router(parte2_router)
 
     @application.get("/", status_code=200)
     async def root() -> dict[str, str]:
