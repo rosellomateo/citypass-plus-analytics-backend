@@ -17,9 +17,12 @@ MODULE_ROLES = {"reclamos": frozenset({"soporte-n2", "guardia-finde"})}
 
 
 def module_audiences(analytics_audience: str) -> dict[str, set[str]]:
-    audiences = {module: {f"citypass-{module}-api"} for module in MODULE_BY_AREA.values()}
-    audiences["analitica"] = {analytics_audience, "citypass-admin-api"}
-    audiences["identidad"] = {os.getenv("JWT_LOGIN_AUDIENCE", "citypass-admin-api")}
+    shared_audience = "citypass-admin-api"
+    audiences = {
+        module: {f"citypass-{module}-api", shared_audience} for module in MODULE_BY_AREA.values()
+    }
+    audiences["analitica"] = {analytics_audience, shared_audience}
+    audiences["identidad"] = {os.getenv("JWT_LOGIN_AUDIENCE", shared_audience), shared_audience}
     return audiences
 
 

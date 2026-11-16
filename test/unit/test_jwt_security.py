@@ -179,9 +179,10 @@ def test_analytics_admin_and_audience(signed_token, audience, groups, expected):
             assert response.status_code == expected
 
 
-def test_session_accepts_documented_list_audience_and_limits_module(signed_token):
+@pytest.mark.parametrize("audience", [["citypass-reclamos-api"], "citypass-admin-api"])
+def test_session_accepts_portal_or_module_audience_and_limits_module(signed_token, audience):
     validator, _, key, claims = signed_token
-    claims.update(aud=["citypass-reclamos-api"], groups=["operadores"], module="reclamos")
+    claims.update(aud=audience, groups=["admin"], module="reclamos")
     token = jwt.encode(claims, key, algorithm="RS256", headers={"kid": "clave-prueba"})
     app = create_app()
     app.dependency_overrides[obtener_validador] = lambda: validator
