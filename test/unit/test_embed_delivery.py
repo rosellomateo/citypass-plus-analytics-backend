@@ -14,6 +14,7 @@ from app.main import create_app
 from app.repositories import embed_template_repository
 from app.repositories.embed_template_repository import (
     MODULOS_EMBED,
+    MODULOS_EMBED_BASE,
     EmbedTemplateRepository,
     InvalidEmbedRelease,
 )
@@ -199,14 +200,15 @@ def test_storage_or_data_failure_is_generic_503_and_is_not_cached(client, failur
     assert http.get("/embed/reclamos").status_code == 200
 
 
-def test_identidad_preserves_authentication_probe_without_loading_html(client, caplog):
+def test_identidad_returns_html_and_loads_data(client, caplog):
     http, templates, payloads, _ = client
     with caplog.at_level("INFO", logger="app.routers.rout_embed"):
         response = http.get("/embed/identidad")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
-    templates.load.assert_not_called()
-    payloads.assert_not_called()
+    assert response.headers["content-type"] == "text/html; charset=utf-8"
+    assert json.loads(PayloadParser(response.text).payload)["datos"] == [{"module": "identidad"}]
+    templates.load.assert_called_once_with()
+    payloads.assert_called_once_with("identidad")
     assert "embed modulo=identidad usuario=U42" in caplog.text
 
 
@@ -226,6 +228,7 @@ def test_lazy_configuration_does_not_break_health_and_fails_closed(monkeypatch):
 def test_loads_and_verifies_a_complete_release(monkeypatch):
     repository, container = make_repository(monkeypatch)
     assert repository.load() == TEMPLATE
+    assert all(repository.supports_module(module) for module in MODULOS_EMBED)
     assert [call.args[0] for call in container.get_blob_client.call_args_list] == [
         f"releases/{RELEASE}/SHA256SUMS",
         f"releases/{RELEASE}/manifest.json",
@@ -260,6 +263,8 @@ def test_rejects_modified_remote_files(monkeypatch, filename):
         {"template": "../other.html"},
         {"modules": ["identidad"]},
         {"modules": [1]},
+        {"modules": sorted(MODULOS_EMBED) + ["eda"]},
+        {"modules": sorted(MODULOS_EMBED) + ["identidad"]},
         {"sha256": "0" * 64},
         {"bytes": 1},
     ],
@@ -342,7 +347,75 @@ def test_payload_matches_existing_analytics_services_and_closes_repositories(mon
 def test_cannot_render_an_unsupported_module():
     service = EmbedService(SETTINGS, Mock())
     with pytest.raises(ValueError):
+        service.render("eda")
+
+
+@pytest.mark.parametrize("identity_first", [False, True])
+def test_old_release_keeps_five_modules_working_and_does_not_render_identity(
+    monkeypatch, identity_first
+):
+    repository, container = make_repository(
+        monkeypatch, make_release(modules=sorted(MODULOS_EMBED_BASE))
+    )
+    payloads = Mock(return_value={"datos": [], "informe": {}})
+    service = EmbedService(SETTINGS, repository, payloads)
+    if identity_first:
+        with pytest.raises(EmbedUnavailableError):
+            service.render("identidad")
+        payloads.assert_not_called()
+    for module in sorted(MODULOS_EMBED_BASE):
+        assert f'data-modulo="{module}"' in service.render(module)
+    with pytest.raises(EmbedUnavailableError):
         service.render("identidad")
+    assert payloads.call_count == 5
+    assert container.get_blob_client.call_count == 3
+
+
+@pytest.mark.parametrize("with_report", [True, False])
+def test_identidad_html_includes_analytics_data_with_optional_report(monkeypatch, with_report):
+    repository, _ = make_repository(monkeypatch)
+    reports = FakeJsonRepository()
+    if not with_report:
+        error = ResourceNotFoundError("private storage details")
+        error.error_code = "BlobNotFound"
+        reports.read = Mock(side_effect=error)
+    payload = embed_service.SERVICIOS["identidad"](FakeParquetRepository(), reports).model_dump(
+        mode="json"
+    )
+    service = EmbedService(SETTINGS, repository, Mock(return_value=payload))
+    application = create_app()
+    application.dependency_overrides[rout_embed.autorizar_embed] = lambda: {
+        "sub": "U42",
+        "jti": "test",
+    }
+    monkeypatch.setattr(rout_embed, "obtener_servicio_embed", lambda: service)
+    with TestClient(application) as http:
+        response = http.get("/embed/identidad")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/html; charset=utf-8"
+    assert response.headers["cache-control"] == "private, no-store"
+    injected = json.loads(PayloadParser(response.text).payload)
+    assert injected == payload
+    assert injected["datos"][0]["cantidadEventos"] == 3_000_000_000
+    assert (injected["informe"] is not None) == with_report
+
+
+def test_identity_with_old_release_returns_503_without_loading_data(monkeypatch):
+    repository, _ = make_repository(monkeypatch, make_release(modules=sorted(MODULOS_EMBED_BASE)))
+    payloads = Mock()
+    service = EmbedService(SETTINGS, repository, payloads)
+    application = create_app()
+    application.dependency_overrides[rout_embed.autorizar_embed] = lambda: {
+        "sub": "U42",
+        "jti": "test",
+    }
+    monkeypatch.setattr(rout_embed, "obtener_servicio_embed", lambda: service)
+    with TestClient(application) as http:
+        response = http.get("/embed/identidad")
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Analítica no disponible"}
+    assert response.headers["cache-control"] == "private, no-store"
+    payloads.assert_not_called()
 
 
 def test_invalid_payload_does_not_populate_cache():

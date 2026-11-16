@@ -14,8 +14,10 @@ from app.repositories.embed_template_repository import (
     MARCADOR_MODULO,
     MODULOS_EMBED,
     EmbedTemplateRepository,
+    InvalidEmbedRelease,
 )
 from app.services.espacios_cultura_service import obtener_analitica_espacios
+from app.services.identidad_service import obtener_analitica_identidad
 from app.services.movilidad_service import obtener_analitica_viajes
 from app.services.reclamos_service import obtener_analitica_reclamos
 from app.services.residuos_service import obtener_analitica_residuos
@@ -27,6 +29,7 @@ SERVICIOS = {
     "movilidad": obtener_analitica_viajes,
     "espacios": obtener_analitica_espacios,
     "residuos": obtener_analitica_residuos,
+    "identidad": obtener_analitica_identidad,
 }
 
 
@@ -70,6 +73,8 @@ class EmbedService:
             try:
                 if self._template is None:
                     self._template = self._templates.load()
+                if not self._templates.supports_module(modulo):
+                    raise InvalidEmbedRelease("La release configurada no incluye este módulo")
                 payload = self._payload_loader(modulo)
                 # Los datos son JSON inerte. Escapar '<' impide cerrar el bloque script.
                 data = json.dumps(payload, ensure_ascii=False, allow_nan=False).replace(

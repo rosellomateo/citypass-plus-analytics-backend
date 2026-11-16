@@ -29,6 +29,7 @@ validación de formato se usa en `/analytics/*`, con la audiencia configurada en
 | movilidad | citypass-movilidad-api | com.citypass.movilidad |
 | emergencias | citypass-emergencias-api | com.citypass.emergencias |
 | espacios | citypass-espacios-api | com.citypass.espacios |
+| identidad | citypass-admin-api | No se exige |
 
 El namespace firmado autoriza el módulo; `groups` y `module` no participan de esta
 política. El grupo `admin` no permite saltar audiencia o namespace. No se requiere
@@ -95,17 +96,22 @@ Un lock evita descargas simultáneas al llenar la caché. Al vencer el TTL se le
 Gold e informes nuevamente, reutilizando la plantilla. No se sirven resultados
 vencidos si esa lectura falla.
 
-Se reutilizan los cinco servicios actuales; el payload es exactamente su
+Se reutilizan los seis servicios actuales; el payload es exactamente su
 `model_dump(mode="json")`: `{"datos": [...], "informe": {...}}`. La serialización
 escapa `<` como `\u003c` para que un valor con `</script>` no cierre el bloque JSON.
 Los tokens no se insertan en el HTML.
+
+Identidad lee `LDAP/autenticacion_resumen.parquet` y `identidad.json` mediante
+el mismo servicio de `/analytics/identidad`. Si el informe no existe, se inyecta
+`informe: null` y el frontend muestra los eventos sin el panel de IA. La falta del
+Parquet o cualquier otro fallo de lectura sigue devolviendo 503.
 
 El contenido cacheado depende solo del módulo. Si se incorporan filtros o datos
 particulares por usuario, hay que adaptar la clave de caché antes de habilitarlos.
 
 ## Respuesta e integración de otros equipos
 
-Para los cinco módulos, la respuesta es `200 text/html; charset=utf-8` con:
+Para los seis módulos, la respuesta es `200 text/html; charset=utf-8` con:
 
 ```http
 Cache-Control: private, no-store
@@ -129,13 +135,23 @@ La ruta `/admin/analitica` pertenece al backend del equipo. Ese backend llama a
 Analítica; una carga normal de iframe no permite agregar el Bearer en `src`.
 El HTML embebido debe renderizar el tablero sin pasar por la pantalla de login.
 
-## Compatibilidad con Identidad
+## Identidad y compatibilidad de releases
 
-La release actual del frontend solo define cinco módulos. `/embed/identidad`
-conserva la prueba autenticada `200 application/json` con `{"status":"ok"}`, sin
-cargar la plantilla ni los datos. Acepta `citypass-admin-api` como string o lista
-que la incluya y mantiene sus validaciones, sin exigir namespace/grupos.
-Para entregar HTML de Identidad hace falta ampliar el paquete en ambos repositorios.
+`/embed/identidad` entrega HTML con datos en lugar de la prueba JSON
+`{"status":"ok"}` anterior. Mantiene la audiencia `citypass-admin-api` como string
+o lista que la incluya, token human y demás validaciones; no exige namespace,
+groups ni module. No cambia la política de `/analytics/identidad`.
+
+El manifiesto puede describir los cinco módulos anteriores o los seis incluyendo
+Identidad. Se rechazan módulos desconocidos, duplicados y manifiestos que omitan
+alguno de los cinco originales. El servicio solo renderiza módulos declarados en
+la release: con una plantilla de cinco módulos, Identidad devuelve 503 y los otros
+cinco siguen funcionando.
+
+Orden de activación: desplegar este backend compatible, publicar la nueva plantilla
+de seis módulos y configurar su SHA de frontend en `EMBED_RELEASE_SHA` de la Web App
+correspondiente. Reiniciar el proceso al cambiar de SHA. Hasta completar esos pasos
+no se debe dar por habilitada la entrega HTML de Identidad.
 
 ## Errores y verificación
 
