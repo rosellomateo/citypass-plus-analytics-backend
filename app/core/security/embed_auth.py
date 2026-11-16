@@ -56,19 +56,7 @@ class HumanEmbedJWTValidator(JWTValidator):
             raise jwt.InvalidTokenError("Se requiere un token de usuario human")
         if type(claims["ver"]) is not int or claims["ver"] != 1:
             raise jwt.InvalidTokenError("Versión inválida")
-        aud = claims["aud"]
-        if es_identidad:
-            if not (
-                isinstance(aud, str)
-                and aud == self._settings.audience
-                or isinstance(aud, list)
-                and aud
-                and all(isinstance(value, str) and value for value in aud)
-                and self._settings.audience in aud
-            ):
-                raise jwt.InvalidTokenError("Audiencia de Identidad inválida")
-        elif not isinstance(aud, str) or aud != self._settings.audience:
-            raise jwt.InvalidTokenError("aud debe ser un string con la audiencia del módulo")
+        self._validar_audiencia(claims["aud"])
         for name in ("sub", "jti", *([] if es_identidad else ["namespace"])):
             if not isinstance(claims[name], str) or not claims[name].strip():
                 raise jwt.InvalidTokenError(f"Claim {name} inválido")

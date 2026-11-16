@@ -19,6 +19,18 @@ class JWTValidator:
             timeout=5,
         )
 
+    def _validar_audiencia(self, audience: object) -> None:
+        # LDAP emite una lista; conservar el string de los tokens anteriores.
+        audiences = [audience] if isinstance(audience, str) else audience
+        if (
+            not isinstance(audiences, list)
+            or not audiences
+            or not all(isinstance(value, str) and value.strip() for value in audiences)
+        ):
+            raise jwt.InvalidAudienceError("El claim aud debe contener audiencias no vacías")
+        if self._settings.audience not in audiences:
+            raise jwt.InvalidAudienceError("Audience no permitida")
+
     def validar(self, token: str) -> UsuarioAutenticado:
         # 1. Buscar la clave pública correspondiente al kid.
         signing_key = self._jwks_client.get_signing_key_from_jwt(token)
@@ -52,14 +64,7 @@ class JWTValidator:
         if type(claims.get("ver")) is not int or claims["ver"] != 1:
             raise jwt.InvalidTokenError("Versión del contrato inválida")
 
-        audience = claims.get("aud")
-
-        # Formato actual de Identidad: aud es un string, no una lista.
-        if not isinstance(audience, str) or not audience.strip():
-            raise jwt.InvalidTokenError("El claim aud debe ser un string no vacío")
-
-        if audience != self._settings.audience:
-            raise jwt.InvalidTokenError("Audience no permitida")
+        self._validar_audiencia(claims["aud"])
 
         sub = claims.get("sub")
 
