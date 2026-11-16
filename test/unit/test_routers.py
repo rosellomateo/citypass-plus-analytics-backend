@@ -69,20 +69,22 @@ class FakeParquetRepository:
                     }
                 ]
             ),
-            "Espacios Publicos y Cultura/reservas_resumen.parquet": pl.DataFrame(
+            "Espacios Publicos y Cultura/actividades_resumen.parquet": pl.DataFrame(
                 [
                     {
-                        "recursoId": "REC-001",
-                        "tipoReserva": "Presencial",
-                        "categoria": "Cultura",
-                        "zona": "Centro",
-                        "cupoMaximo": 100.0,
-                        "cantidadTotal": 80,
-                        "cantidadConfirmadas": 70,
-                        "cantidadCanceladas": 10,
-                        "inscriptos": 75,
-                        "pctOcupacion": 75.0,
-                        "fecha_snapshot": datetime(2026, 9, 21, 10, 30),
+                        "estado_actual": "SUSPENDIDA",
+                        "categoria": "CULTURAL",
+                        "causaTipo": "EVENTO_CLIMATICO",
+                        "organizadorTipo": "MUNICIPIO",
+                        "barrio": "Centro",
+                        "cantidadActividades": 12,
+                        "cantidadMasivas": 5,
+                        "cantidadAfectadasPorClima": 12,
+                        "totalVecesEventoClimatico": 15,
+                        "totalVecesReclamo": 3,
+                        "totalVecesIncidenteVial": 2,
+                        "totalVecesAccidenteVial": 1,
+                        "fecha_snapshot": date(2026, 11, 15),
                     }
                 ]
             ),
@@ -237,17 +239,19 @@ def client(monkeypatch):
             "/analytics/espacios-cultura",
             [
                 {
-                    "recursoId": "REC-001",
-                    "tipoReserva": "Presencial",
-                    "categoria": "Cultura",
-                    "zona": "Centro",
-                    "cupoMaximo": 100.0,
-                    "cantidadTotal": 80,
-                    "cantidadConfirmadas": 70,
-                    "cantidadCanceladas": 10,
-                    "inscriptos": 75,
-                    "pctOcupacion": 75.0,
-                    "fecha_snapshot": "2026-09-21T10:30:00",
+                    "estado_actual": "SUSPENDIDA",
+                    "categoria": "CULTURAL",
+                    "causaTipo": "EVENTO_CLIMATICO",
+                    "organizadorTipo": "MUNICIPIO",
+                    "barrio": "Centro",
+                    "cantidadActividades": 12,
+                    "cantidadMasivas": 5,
+                    "cantidadAfectadasPorClima": 12,
+                    "totalVecesEventoClimatico": 15,
+                    "totalVecesReclamo": 3,
+                    "totalVecesIncidenteVial": 2,
+                    "totalVecesAccidenteVial": 1,
+                    "fecha_snapshot": "2026-11-15",
                 }
             ],
         ),

@@ -25,7 +25,7 @@ rutas originales.
 | `/analytics/reclamos` | Lista de reclamos agregados | `Reclamos/reclamos_resumen.parquet` |
 | `/analytics/seguridad-emergencias` | Lista de emergencias agregadas | `Emergencias y Seguridad/emergencias_resumen.parquet` |
 | `/analytics/movilidad-urbana` | Lista de viajes agregados | `Movilidad Urbana/viajes_resumen.parquet` |
-| `/analytics/espacios-cultura` | Lista de reservas agregadas | `Espacios Publicos y Cultura/reservas_resumen.parquet` |
+| `/analytics/espacios-cultura` | Lista de actividades agregadas | `Espacios Publicos y Cultura/actividades_resumen.parquet` |
 | `/analytics/residuos` | Lista de alertas agregadas | `Gestion de Residuos Inteligente/alertas_resumen.parquet` |
 | `/analytics/eventos` | Un evento temporal de prueba | Sin conexión a Gold |
 
@@ -52,11 +52,24 @@ Cada elemento contiene:
 
 ### Espacios públicos y cultura
 
-Cada elemento contiene:
+La respuesta conserva `{datos, informe}`. Cada elemento de `datos` contiene:
 
-`recursoId`, `tipoReserva`, `categoria`, `zona`, `cupoMaximo`, `cantidadTotal`,
-`cantidadConfirmadas`, `cantidadCanceladas`, `inscriptos`, `pctOcupacion`,
-`fecha_snapshot`.
+`estado_actual`, `categoria`, `causaTipo`, `organizadorTipo`, `barrio`,
+`cantidadActividades`, `cantidadMasivas`, `cantidadAfectadasPorClima`,
+`totalVecesEventoClimatico`, `totalVecesReclamo`, `totalVecesIncidenteVial`,
+`totalVecesAccidenteVial`, `fecha_snapshot` (fecha `YYYY-MM-DD`).
+
+Cada fila es un agregado por estado, categoría, causa, organizador y barrio;
+el total de actividades es la suma de `cantidadActividades`, no el número de filas.
+Los contadores de incidentes y accidentes viales se mantienen separados.
+`informe` sigue leyendo `espacios.json` del contenedor de análisis.
+
+Este contrato reemplaza las reservas: no se publican cupos, inscriptos ni
+porcentajes de ocupación porque no existen en el dataset de actividades.
+El frontend web y la plantilla embed deben adaptarse a estos campos antes de
+mostrar los indicadores de Cultura. `/embed/espacios` inyecta el mismo contrato;
+la publicación de una plantilla en Blob no modifica su código al cambiar el backend.
+Esta adaptación no incorpora `/analytics/culture/parte2`.
 
 ### Residuos
 
