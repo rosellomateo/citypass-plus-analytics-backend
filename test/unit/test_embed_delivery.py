@@ -339,9 +339,48 @@ def test_payload_matches_existing_analytics_services_and_closes_repositories(mon
 
     monkeypatch.setattr(embed_service, "obtener_repositorio", gold_context)
     monkeypatch.setattr(embed_service, "obtener_repositorio_informes", reports_context)
+    monkeypatch.setattr(embed_service, "cargar_parte2", lambda modulo: {"datos": [modulo]})
     expected = embed_service.SERVICIOS[module](gold, reports).model_dump(mode="json")
+    if module != "identidad":
+        # Parte 2 se agrega aparte; lo que ya se mandaba no cambia.
+        expected["parte2"] = {"datos": [module]}
     assert embed_service.cargar_payload(module) == expected
     assert closed == ["reports", "gold"]
+
+
+@pytest.mark.parametrize(
+    ("module", "area"),
+    [
+        ("reclamos", "claims"),
+        ("emergencias", "emergencies"),
+        ("movilidad", "mobility"),
+        ("espacios", "culture"),
+        ("residuos", "waste"),
+    ],
+)
+def test_embed_parte2_uses_the_same_indicators_as_the_portal(monkeypatch, module, area):
+    from app.routers.rout_parte2 import Indicador, IndicadoresParteDos
+
+    pedidos = []
+
+    def leer(requested):
+        pedidos.append(requested)
+        return IndicadoresParteDos(datos=[Indicador(id="c5", valor=3)])
+
+    monkeypatch.setattr(embed_service, "leer_indicadores", leer)
+    assert embed_service.cargar_parte2(module)["datos"][0]["id"] == "c5"
+    assert pedidos == [area]
+
+
+def test_embed_without_parte2_still_delivers_the_dashboard(monkeypatch):
+    from fastapi import HTTPException
+
+    def falla(area):
+        raise HTTPException(503, "No se pudieron consultar los indicadores")
+
+    monkeypatch.setattr(embed_service, "leer_indicadores", falla)
+    assert embed_service.cargar_parte2("residuos") is None
+    assert embed_service.cargar_parte2("identidad") is None
 
 
 def test_cannot_render_an_unsupported_module():

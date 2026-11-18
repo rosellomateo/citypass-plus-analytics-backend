@@ -1,11 +1,14 @@
 """Tableros autocontenidos: plantilla versionada + respuesta existente de analítica."""
 
 import json
+import logging
 import time
 from collections.abc import Callable
 from contextlib import contextmanager
 from threading import Lock
 from typing import Any
+
+from fastapi import HTTPException
 
 from app.core.conexion import obtener_repositorio, obtener_repositorio_informes
 from app.core.config import EmbedSettings
@@ -16,6 +19,7 @@ from app.repositories.embed_template_repository import (
     EmbedTemplateRepository,
     InvalidEmbedRelease,
 )
+from app.routers.rout_parte2 import leer_indicadores
 from app.services.espacios_cultura_service import obtener_analitica_espacios
 from app.services.identidad_service import obtener_analitica_identidad
 from app.services.movilidad_service import obtener_analitica_viajes
@@ -33,13 +37,41 @@ SERVICIOS = {
 }
 
 
+logger = logging.getLogger(__name__)
+
+# Módulo del embed -> área de /analytics/{area}/parte2 (identidad no tiene Parte 2).
+AREAS_PARTE2 = {
+    "reclamos": "claims",
+    "emergencias": "emergencies",
+    "movilidad": "mobility",
+    "espacios": "culture",
+    "residuos": "waste",
+}
+
+
+def cargar_parte2(modulo: str) -> dict[str, Any] | None:
+    """Indicadores de Parte 2 del módulo (los mismos que ve el portal). Si no
+    se pueden leer, el tablero se entrega igual sin ellos."""
+    area = AREAS_PARTE2.get(modulo)
+    if area is None:
+        return None
+    try:
+        return leer_indicadores(area).model_dump(mode="json")
+    except HTTPException:
+        logger.warning("Parte 2 no disponible para el embed de %s", modulo)
+        return None
+
+
 def cargar_payload(modulo: str) -> dict[str, Any]:
     # Crear/cerrar los repositorios solo en un cache miss, después de autorizar al usuario.
     with (
         contextmanager(obtener_repositorio)() as gold,
         contextmanager(obtener_repositorio_informes)() as informes,
     ):
-        return SERVICIOS[modulo](gold, informes).model_dump(mode="json")
+        payload = SERVICIOS[modulo](gold, informes).model_dump(mode="json")
+    if modulo in AREAS_PARTE2:
+        payload["parte2"] = cargar_parte2(modulo)
+    return payload
 
 
 class EmbedUnavailableError(RuntimeError):

@@ -47,6 +47,31 @@ AVAILABLE_CAUSES = {
             "c6": "RESERVA",
         },
     ),
+    # Movilidad, Residuos y Espacios solo calculan desde gold el caso 5
+    # (CU-01, emergencia durante un viaje en bici): ver _caso5().
+    "mobility": ("Movilidad Urbana/movilidad_resumen.parquet", "cantidadAfectaciones", {}),
+    "waste": (
+        "Gestion de Residuos Inteligente/intervenciones_resumen.parquet",
+        "cantidadIntervenciones",
+        {},
+    ),
+    "culture": (
+        "Espacios Publicos y Cultura/actividades_resumen.parquet",
+        "cantidadActividades",
+        {},
+    ),
+}
+
+# Nombres de causa tal como los colorea el front (CausePie.tsx).
+ETIQUETAS_CAUSA = {
+    "EVENTO_PUBLICO": "Evento público",
+    "EVENTO_CLIMATICO": "Clima",
+    "RECLAMO": "Reclamo",
+    "INCIDENTE_VIAL": "Incidente vial",
+    "ACCIDENTE_VIAL": "Accidente vial",
+    "EMERGENCIA": "Emergencia",
+    "RESERVA": "Reserva",
+    "NORMAL": "Operación normal",
 }
 
 
@@ -63,6 +88,20 @@ class Indicador(BaseModel):
     detalle: list[DetalleIndicador] = Field(default_factory=list)
 
 
+class PuntoGrafico(BaseModel):
+    etiqueta: str
+    valor: Annotated[float, Field(allow_inf_nan=False)]
+
+
+class GraficoGold(BaseModel):
+    """Gráfico armado desde una tabla gold (GoldReportChart en el front)."""
+
+    id: str
+    titulo: str
+    fecha_snapshot: date
+    puntos: list[PuntoGrafico] = Field(default_factory=list)
+
+
 class IndicadoresParteDos(BaseModel):
     fecha_snapshot: date | None = None
     datos: list[Indicador] = Field(default_factory=list)
@@ -71,6 +110,121 @@ class IndicadoresParteDos(BaseModel):
     impactos: list[ContextImpact] = Field(default_factory=list)
     eventos_publicos: list[PublicEventImpact] | None = None
     informe: InformeAnalisis | None = None
+    resumen_gold: list[GraficoGold] = Field(default_factory=list)
+
+
+def _suma(df: pl.DataFrame, columna: str, causa: str) -> float:
+    return df.filter(pl.col("causaTipo") == causa)[columna].sum()
+
+
+def _caso5(area: Area, df: pl.DataFrame, count_column: str) -> list[Indicador]:
+    """Caso 5 (CU-01): cada módulo cuenta solo con sus propios eventos, por
+    el causaTipo que publica (no se cruzan módulos). Los nombres de las
+    tarjetas los pone el front (PART2_METRICS); acá van id, valor y detalle."""
+    if area == "emergencies":
+        bici = df.filter(pl.col("causaTipo") == "MOVILIDAD_BICICLETA")
+        resultado = [Indicador(id="c5", valor=bici[count_column].sum())]
+        if "tiempoPromResolucion" in df.columns:
+            # El gold repite el mismo promedio en todas las filas de la causa.
+            tiempos = bici["tiempoPromResolucion"].drop_nulls().drop_nans()
+            if len(tiempos) > 0:
+                resultado.append(
+                    Indicador(id="c5b", valor=round(float(tiempos[0]), 1), unidad="min")
+                )
+        return resultado
+
+    if area == "claims":
+        por_emergencia = _suma(df, count_column, "EMERGENCIA")
+        otras = df[count_column].sum() - por_emergencia
+        return [
+            Indicador(
+                id="c5",
+                valor=por_emergencia,
+                detalle=[DetalleIndicador(etiqueta="Otras causas", valor=otras)],
+            )
+        ]
+
+    if area == "mobility":
+        if "cantidadViajesInterrumpidos" not in df.columns:
+            return []
+        viajes = "cantidadViajesInterrumpidos"
+        return [
+            Indicador(
+                id="c5",
+                valor=_suma(df, viajes, "EMERGENCIA"),
+                detalle=[
+                    DetalleIndicador(
+                        etiqueta="Viajes finalizados normalmente",
+                        valor=_suma(df, viajes, "NORMAL"),
+                    )
+                ],
+            )
+        ]
+
+    if area == "waste":
+        return [Indicador(id="c5", valor=_suma(df, count_column, "EMERGENCIA"))]
+
+    if area == "culture":
+        return [Indicador(id="c5", valor=_suma(df, count_column, "ACCIDENTE_VIAL"))]
+
+    return []
+
+
+def _puntos_por_causa(df: pl.DataFrame, columna: str, sin_causa: str | None) -> list[PuntoGrafico]:
+    """Suma `columna` por causaTipo. Las filas sin causa van con la etiqueta
+    `sin_causa`, o se omiten si es None. Los valores vacíos o basura ("")
+    se omiten."""
+    totales: dict[str, float] = {}
+    for causa, valor in df.group_by("causaTipo").agg(pl.col(columna).sum()).iter_rows():
+        if causa is None:
+            if sin_causa is None:
+                continue
+            etiqueta = sin_causa
+        elif not str(causa).strip():
+            continue
+        else:
+            etiqueta = ETIQUETAS_CAUSA.get(causa, str(causa).replace("_", " ").capitalize())
+        totales[etiqueta] = totales.get(etiqueta, 0) + (valor or 0)
+    return [
+        PuntoGrafico(etiqueta=etiqueta, valor=valor)
+        for etiqueta, valor in sorted(totales.items(), key=lambda par: (-par[1], par[0]))
+    ]
+
+
+def _graficos_gold(
+    area: Area, df: pl.DataFrame, count_column: str, snapshot: date | None
+) -> list[GraficoGold]:
+    """Gráficos por causa que el front busca por id en resumen_gold."""
+    if snapshot is None:
+        return []
+    if area == "waste":
+        return [
+            GraficoGold(
+                id="waste-cause",
+                titulo="Intervenciones por causa publicada",
+                fecha_snapshot=snapshot,
+                puntos=_puntos_por_causa(df, count_column, "Operación normal"),
+            )
+        ]
+    if area == "culture":
+        return [
+            GraficoGold(
+                id="culture-cause",
+                titulo="Actividades por causa publicada",
+                fecha_snapshot=snapshot,
+                puntos=_puntos_por_causa(df, count_column, None),
+            )
+        ]
+    if area == "mobility" and "cantidadViajesInterrumpidos" in df.columns:
+        return [
+            GraficoGold(
+                id="mobility-interruptions",
+                titulo="Viajes por causa de interrupción",
+                fecha_snapshot=snapshot,
+                puntos=_puntos_por_causa(df, "cantidadViajesInterrumpidos", None),
+            )
+        ]
+    return []
 
 
 def calcular_desde_resumen(area: Area, storage: AzureBlobStorage) -> IndicadoresParteDos:
@@ -117,8 +271,16 @@ def calcular_desde_resumen(area: Area, storage: AzureBlobStorage) -> Indicadores
         else:
             results.append(Indicador(id=metric_id, valor=matching[count_column].sum()))
 
+    results.extend(_caso5(area, df, count_column))
+
     snapshot_date = date.fromisoformat(str(snapshot)[:10]) if snapshot is not None else None
-    return IndicadoresParteDos(fecha_snapshot=snapshot_date, datos=results)
+    return IndicadoresParteDos(
+        fecha_snapshot=snapshot_date,
+        datos=results,
+        # El front solo muestra las tarjetas de Espacios con version_cultura == 2.
+        version_cultura=2 if area == "culture" else None,
+        resumen_gold=_graficos_gold(area, df, count_column, snapshot_date),
+    )
 
 
 def read_report(storage: AzureBlobStorage, area: Area) -> IndicadoresParteDos:
@@ -184,6 +346,7 @@ def report_from_events(
         actualizado_en=feed.actualizado_en,
         version_cultura=2,
         eventos_publicos=report.eventos_publicos,
+        resumen_gold=report.resumen_gold,
         datos=[
             Indicador(
                 id=metric_id,
