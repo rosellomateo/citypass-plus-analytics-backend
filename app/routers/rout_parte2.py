@@ -24,6 +24,7 @@ from app.services.parte2_events import (
     culture_counts,
     public_event_impacts,
 )
+from app.services.residuos_service import normalizar_causa_programacion
 from app.storage.azure_blob import AzureBlobStorage
 
 router = APIRouter(prefix="/analytics", tags=["Parte 2"])
@@ -234,6 +235,11 @@ def _caso5(area: Area, df: pl.DataFrame, count_column: str) -> list[Indicador]:
         ]
 
     if area == "waste":
+        # Gold separa por origenProgramacion: EMERGENCIA (emergenciaId no nulo)
+        # vs. ALERTA. Sin esa columna (gold viejo) se usa la causa.
+        if "origenProgramacion" in df.columns:
+            emergencia = df.filter(pl.col("origenProgramacion") == "EMERGENCIA")
+            return [Indicador(id="c5", valor=emergencia[count_column].sum())]
         return [Indicador(id="c5", valor=_suma(df, count_column, "EMERGENCIA"))]
 
     if area == "culture":
@@ -324,6 +330,10 @@ def calcular_desde_resumen(area: Area, storage: AzureBlobStorage) -> Indicadores
         if exc.error_code == "BlobNotFound":
             return IndicadoresParteDos()
         raise
+
+    if area == "waste":
+        # Gold de Residuos renombro causaTipo -> causaProgramacion (18/11).
+        df = normalizar_causa_programacion(df)
 
     if count_column not in df.columns:
         return IndicadoresParteDos()

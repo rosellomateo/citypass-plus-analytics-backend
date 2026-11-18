@@ -403,3 +403,29 @@ def test_espacios_caso1_culturales_canceladas_o_suspendidas_por_clima(monkeypatc
     c1 = by_id(rout_parte2.calcular_desde_resumen("culture", None))["c1"]
     assert c1.valor == 30
     assert [(d.etiqueta, d.valor) for d in c1.detalle] == [("Todas las categorías", 34)]
+
+
+def test_residuos_con_causa_programacion_y_origen(monkeypatch):
+    """Gold renombro causaTipo -> causaProgramacion (18/11) y separa el caso 5
+    por origenProgramacion: los indicadores no deben quedar vacios."""
+    leer(
+        monkeypatch,
+        pl.DataFrame(
+            {
+                "fecha_snapshot": [SNAP] * 4,
+                "estado_actual": ["PROGRAMADA", "AFECTADA", "AFECTADA", "PROGRAMADA"],
+                "causaProgramacion": ["EVENTO_PUBLICO", "RESERVA", None, None],
+                "causaTipoAfectacion": [None, "EVENTO_CLIMATICO", "INCIDENTE_VIAL", None],
+                "origenProgramacion": ["NINGUNO", "NINGUNO", "EMERGENCIA", "ALERTA"],
+                "cantidadIntervenciones": [5, 3, 2, 4],
+                "cantidadAfectadas": [0, 3, 2, 0],
+            }
+        ),
+    )
+    report = rout_parte2.calcular_desde_resumen("waste", None)
+    indicadores = by_id(report)
+    assert indicadores["c1"].valor == 3
+    assert indicadores["c5"].valor == 2
+    [grafico] = report.resumen_gold
+    assert grafico.id == "waste-cause"
+    assert sum(p.valor for p in grafico.puntos) == 14
