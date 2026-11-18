@@ -48,6 +48,25 @@ inventadas ni ceros por falta de información. La publicación de los cortes
 corresponde al productor de datos. Un error de permisos, configuración, formato
 o conexión no equivale a un dataset vacío y devuelve `503`.
 
+## Caso 2: reclamos que afectaron a otros módulos
+
+Si falta `parte2/claims.json`, el backend calcula `c2` desde
+`Reclamos/reclamos_resumen.parquet`: suma `row_count` donde
+`afectaOtrosModulos = true`, usando únicamente el último `fecha_snapshot`.
+La bandera la calcula el productor Gold a partir de las referencias de otros
+módulos. Un reclamo cuenta una vez aunque esté relacionado con varios módulos.
+
+Este cálculo es independiente de `causaTipo`: un reclamo ciudadano sin causa
+externa puede afectar a otros módulos. Si faltan las columnas o contienen datos
+desconocidos, `c2` no se publica. Una bandera booleana completa sin reclamos
+afectados sí produce un cero real. El JSON publicado conserva su prioridad;
+no se mezclan cortes de fuentes diferentes.
+
+La tarjeta «Reclamos que afectaron a otros módulos» y su barra en «Reclamos
+vinculados a otros servicios» ya existen en el frontend. El mismo indicador
+se incorpora al bloque `parte2` del HTML embed. No identifica exclusivamente
+ciclovías, porque esa dimensión no está en el resumen Gold actual.
+
 ## Corte opcional de eventos
 
 Cultura, Emergencias y EDA pueden complementar sus indicadores con un corte
@@ -92,5 +111,6 @@ el polling de esa área hasta un reintento manual o una nueva carga de la pantal
 un reintento exitoso vuelve a habilitar el refresco. Los fallos transitorios
 conservan el último corte y mantienen los reintentos.
 
-El HTML embed sigue usando el JSON primario inyectado y no consulta estas rutas:
-esta integración corrige los indicadores adicionales de la web normal.
+El HTML embed incluye los indicadores disponibles en el bloque `parte2` del
+JSON inyectado y no consulta estas rutas desde el iframe. Para recibir un corte
+nuevo hay que solicitar nuevamente el HTML y contemplar la caché interna del backend.
