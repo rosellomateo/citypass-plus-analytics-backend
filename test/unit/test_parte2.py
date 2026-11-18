@@ -127,8 +127,9 @@ def test_movilidad_caso5_viajes_interrumpidos_contra_normales(monkeypatch):
     c5 = by_id(report)["c5"]
     assert c5.valor == 2
     assert [(d.etiqueta, d.valor) for d in c5.detalle] == [("Viajes finalizados normalmente", 36)]
-    [grafico] = report.resumen_gold
-    assert grafico.id == "mobility-interruptions"
+    graficos = {g.id: g for g in report.resumen_gold}
+    assert set(graficos) == {"mobility-stations", "mobility-interruptions"}
+    grafico = graficos["mobility-interruptions"]
     assert {p.etiqueta: p.valor for p in grafico.puntos} == {
         "Operación normal": 36,
         "Incidente vial": 12,
@@ -226,3 +227,118 @@ def test_reporte_de_espacios_con_feed_conserva_los_graficos_de_gold(monkeypatch)
     report = rout_parte2.report_from_events(None, "culture", gold)
     assert report.version_cultura == 2
     assert [g.id for g in report.resumen_gold] == ["culture-cause"]
+
+
+# Caso 1 (evento climático) con las filas gold reales del 18/11.
+
+
+def test_movilidad_caso1_estaciones_bloqueadas_por_clima(monkeypatch):
+    leer(
+        monkeypatch,
+        pl.DataFrame(
+            {
+                "fecha_snapshot": [SNAP] * 3,
+                "causaTipo": ["EVENTO_CLIMATICO", "RECLAMO", "NORMAL"],
+                "cantidadAfectaciones": [17, 21, 0],
+                "cantidadBloqueadas": [14, 6, 0],
+                "estacionesBloqueadasDistintas": [12, 6, 0],
+                "cantidadViajesInterrumpidos": [1, 0, 36],
+            }
+        ),
+    )
+    report = rout_parte2.calcular_desde_resumen("mobility", None)
+    c1 = by_id(report)["c1"]
+    assert c1.valor == 12
+    assert [(d.etiqueta, d.valor) for d in c1.detalle] == [("Bloqueos registrados", 14)]
+    estaciones = {g.id: g for g in report.resumen_gold}["mobility-stations"]
+    assert [(p.etiqueta, p.valor) for p in estaciones.puntos] == [("Reclamo", 21), ("Clima", 17)]
+
+
+def test_movilidad_sin_columnas_de_bloqueo_no_inventa_c1(monkeypatch):
+    leer(
+        monkeypatch,
+        pl.DataFrame(
+            {
+                "fecha_snapshot": [SNAP],
+                "causaTipo": ["EVENTO_CLIMATICO"],
+                "cantidadAfectaciones": [17],
+            }
+        ),
+    )
+    assert "c1" not in by_id(rout_parte2.calcular_desde_resumen("mobility", None))
+
+
+def test_residuos_caso1_usa_la_causa_de_la_afectacion(monkeypatch):
+    leer(
+        monkeypatch,
+        pl.DataFrame(
+            {
+                "fecha_snapshot": [SNAP] * 4,
+                "causaTipo": ["EVENTO_PUBLICO", "RECLAMO", None, "RESERVA"],
+                "causaTipoAfectacion": [
+                    "EVENTO_CLIMATICO",
+                    "EVENTO_CLIMATICO",
+                    None,
+                    "INCIDENTE_VIAL",
+                ],
+                "cantidadIntervenciones": [3, 1, 35, 2],
+                "cantidadAfectadas": [3, 1, 0, 2],
+            }
+        ),
+    )
+    report = rout_parte2.calcular_desde_resumen("waste", None)
+    assert by_id(report)["c1"].valor == 4
+
+
+def test_residuos_sin_causa_de_afectacion_no_inventa_c1(monkeypatch):
+    leer(
+        monkeypatch,
+        pl.DataFrame(
+            {
+                "fecha_snapshot": [SNAP],
+                "causaTipo": ["EVENTO_CLIMATICO"],
+                "cantidadIntervenciones": [3],
+                "cantidadAfectadas": [3],
+            }
+        ),
+    )
+    assert "c1" not in by_id(rout_parte2.calcular_desde_resumen("waste", None))
+
+
+def test_espacios_caso1_culturales_canceladas_o_suspendidas_por_clima(monkeypatch):
+    leer(
+        monkeypatch,
+        pl.DataFrame(
+            {
+                "fecha_snapshot": [SNAP] * 6,
+                "estado_actual": [
+                    "CANCELADA",
+                    "SUSPENDIDA",
+                    "CANCELADA",
+                    "PROGRAMADA",
+                    "CANCELADA",
+                    "CANCELADA",
+                ],
+                "categoria": [
+                    "CULTURAL",
+                    "CULTURAL",
+                    "DEPORTIVO",
+                    "Talleres",
+                    "Música",
+                    "CULTURAL",
+                ],
+                "causaTipo": [
+                    "EVENTO_CLIMATICO",
+                    "EVENTO_CLIMATICO",
+                    "EVENTO_CLIMATICO",
+                    "EVENTO_CLIMATICO",
+                    "EVENTO_CLIMATICO",
+                    "RECLAMO",
+                ],
+                "cantidadActividades": [24, 6, 3, 1, 1, 5],
+            }
+        ),
+    )
+    c1 = by_id(rout_parte2.calcular_desde_resumen("culture", None))["c1"]
+    assert c1.valor == 30
+    assert [(d.etiqueta, d.valor) for d in c1.detalle] == [("Todas las categorías", 34)]
