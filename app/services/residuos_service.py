@@ -8,7 +8,7 @@ def obtener_analitica_residuos(
     repositorio: AzureParquetRepository,
     repositorio_informes: AzureJsonRepository,
 ) -> RespuestaResiduos:
-    df = repositorio.read("Gestion de Residuos Inteligente/alertas_resumen.parquet")
+    df = repositorio.read("Gestion de Residuos Inteligente/intervenciones_resumen.parquet")
 
     residuos = []
 

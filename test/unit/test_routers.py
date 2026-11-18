@@ -88,7 +88,7 @@ class FakeParquetRepository:
                     }
                 ]
             ),
-            "Gestion de Residuos Inteligente/alertas_resumen.parquet": pl.DataFrame(
+            "Gestion de Residuos Inteligente/intervenciones_resumen.parquet": pl.DataFrame(
                 [
                     {
                         "zona": "Norte",
