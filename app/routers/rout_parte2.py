@@ -47,8 +47,9 @@ AVAILABLE_CAUSES = {
             "c6": "RESERVA",
         },
     ),
-    # Movilidad, Residuos y Espacios solo calculan desde gold el caso 5
-    # (CU-01, emergencia durante un viaje en bici): ver _caso5().
+    # Movilidad, Residuos y Espacios calculan desde gold el caso 1 (evento
+    # climático, ver _caso1()) y el caso 5 (CU-01, emergencia durante un viaje
+    # en bici, ver _caso5()).
     "mobility": ("Movilidad Urbana/movilidad_resumen.parquet", "cantidadAfectaciones", {}),
     "waste": (
         "Gestion de Residuos Inteligente/intervenciones_resumen.parquet",
@@ -115,6 +116,77 @@ class IndicadoresParteDos(BaseModel):
 
 def _suma(df: pl.DataFrame, columna: str, causa: str) -> float:
     return df.filter(pl.col("causaTipo") == causa)[columna].sum()
+
+
+def _sumar(df: pl.DataFrame, columna: str) -> float:
+    return df[columna].sum() if columna in df.columns else 0
+
+
+def _caso2(area: Area, df: pl.DataFrame) -> list[Indicador]:
+    """Reclamos que Gold vinculó con al menos otro módulo, sin contar sus eventos."""
+    if area != "claims" or not {"afectaOtrosModulos", "row_count"}.issubset(df.columns):
+        return []
+    if (
+        df.schema["afectaOtrosModulos"] != pl.Boolean
+        or df["afectaOtrosModulos"].null_count()
+        or not df.schema["row_count"].is_numeric()
+        or df["row_count"].null_count()
+    ):
+        return []
+    afectados = df.filter(pl.col("afectaOtrosModulos"))
+    return [Indicador(id="c2", valor=afectados["row_count"].sum())]
+
+
+def _caso1(area: Area, df: pl.DataFrame) -> list[Indicador]:
+    """Caso 1 (evento climático) en los módulos que no lo leen de AVAILABLE_CAUSES.
+    Cada módulo usa la columna gold que describe su propio impacto."""
+    if area == "mobility":
+        columnas = {"cantidadBloqueadas", "estacionesBloqueadasDistintas"}
+        if not columnas.issubset(df.columns):
+            return []
+        clima = df.filter(pl.col("causaTipo") == "EVENTO_CLIMATICO")
+        return [
+            Indicador(
+                id="c1",
+                valor=_sumar(clima, "estacionesBloqueadasDistintas"),
+                detalle=[
+                    DetalleIndicador(
+                        etiqueta="Bloqueos registrados", valor=_sumar(clima, "cantidadBloqueadas")
+                    )
+                ],
+            )
+        ]
+
+    if area == "waste":
+        # La causa de la afectación va en su propia columna: causaTipo es la
+        # causa de la programación de la intervención.
+        if not {"causaTipoAfectacion", "cantidadAfectadas"}.issubset(df.columns):
+            return []
+        clima = df.filter(pl.col("causaTipoAfectacion") == "EVENTO_CLIMATICO")
+        return [Indicador(id="c1", valor=_sumar(clima, "cantidadAfectadas"))]
+
+    if area == "culture":
+        if not {"categoria", "estado_actual", "cantidadActividades"}.issubset(df.columns):
+            return []
+        afectadas = df.filter(
+            (pl.col("causaTipo") == "EVENTO_CLIMATICO")
+            & pl.col("estado_actual").is_in(["CANCELADA", "SUSPENDIDA"])
+        )
+        culturales = afectadas.filter(pl.col("categoria").str.to_uppercase() == "CULTURAL")
+        return [
+            Indicador(
+                id="c1",
+                valor=_sumar(culturales, "cantidadActividades"),
+                detalle=[
+                    DetalleIndicador(
+                        etiqueta="Todas las categorías",
+                        valor=_sumar(afectadas, "cantidadActividades"),
+                    )
+                ],
+            )
+        ]
+
+    return []
 
 
 def _caso5(area: Area, df: pl.DataFrame, count_column: str) -> list[Indicador]:
@@ -215,15 +287,29 @@ def _graficos_gold(
                 puntos=_puntos_por_causa(df, count_column, None),
             )
         ]
-    if area == "mobility" and "cantidadViajesInterrumpidos" in df.columns:
-        return [
+    if area == "mobility":
+        graficos = [
             GraficoGold(
-                id="mobility-interruptions",
-                titulo="Viajes por causa de interrupción",
+                id="mobility-stations",
+                titulo="Estaciones afectadas por causa",
                 fecha_snapshot=snapshot,
-                puntos=_puntos_por_causa(df, "cantidadViajesInterrumpidos", None),
+                puntos=[
+                    punto
+                    for punto in _puntos_por_causa(df, count_column, None)
+                    if punto.etiqueta != ETIQUETAS_CAUSA["NORMAL"]
+                ],
             )
         ]
+        if "cantidadViajesInterrumpidos" in df.columns:
+            graficos.append(
+                GraficoGold(
+                    id="mobility-interruptions",
+                    titulo="Viajes por causa de interrupción",
+                    fecha_snapshot=snapshot,
+                    puntos=_puntos_por_causa(df, "cantidadViajesInterrumpidos", None),
+                )
+            )
+        return graficos
     return []
 
 
@@ -239,17 +325,27 @@ def calcular_desde_resumen(area: Area, storage: AzureBlobStorage) -> Indicadores
             return IndicadoresParteDos()
         raise
 
-    if not {"causaTipo", count_column}.issubset(df.columns):
+    if count_column not in df.columns:
         return IndicadoresParteDos()
 
     snapshot = df["fecha_snapshot"].max() if "fecha_snapshot" in df.columns else None
     if snapshot is not None:
         df = df.filter(pl.col("fecha_snapshot") == snapshot)
 
-    if not df["causaTipo"].is_not_null().any() or df[count_column].null_count():
-        return IndicadoresParteDos()
+    snapshot_date = date.fromisoformat(str(snapshot)[:10]) if snapshot is not None else None
+    # El reclamo ciudadano puede no tener causa externa y aun así afectar a
+    # otros módulos. c2 usa la bandera de Gold, independientemente de causaTipo.
+    results = _caso2(area, df)
+    if (
+        "causaTipo" not in df.columns
+        or not df["causaTipo"].is_not_null().any()
+        or df[count_column].null_count()
+    ):
+        return IndicadoresParteDos(
+            fecha_snapshot=snapshot_date if results else None,
+            datos=results,
+        )
 
-    results = []
     for metric_id, cause in causes.items():
         matching = df.filter(pl.col("causaTipo") == cause)
         if area == "emergencies" and metric_id == "c1":
@@ -271,9 +367,9 @@ def calcular_desde_resumen(area: Area, storage: AzureBlobStorage) -> Indicadores
         else:
             results.append(Indicador(id=metric_id, valor=matching[count_column].sum()))
 
+    results.extend(_caso1(area, df))
     results.extend(_caso5(area, df, count_column))
 
-    snapshot_date = date.fromisoformat(str(snapshot)[:10]) if snapshot is not None else None
     return IndicadoresParteDos(
         fecha_snapshot=snapshot_date,
         datos=results,
