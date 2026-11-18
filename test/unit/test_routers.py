@@ -88,16 +88,21 @@ class FakeParquetRepository:
                     }
                 ]
             ),
+            # Esquema real de gold (intervenciones de cuadrillas); el servicio
+            # lo traduce al contrato Residuo que espera el front.
             "Gestion de Residuos Inteligente/intervenciones_resumen.parquet": pl.DataFrame(
                 [
                     {
-                        "zona": "Norte",
-                        "tipoAlerta": "Contenedor lleno",
-                        "prioridad": "Alta",
-                        "rangoNivelLlenado": "80-100%",
-                        "cantidadAlertas": 20,
-                        "cantidadResueltas": 15,
-                        "tiempoPromResolucion": 35.5,
+                        "estado_actual": "AFECTADA",
+                        "causaTipo": "RECLAMO",
+                        "causaTipoAfectacion": "EVENTO_CLIMATICO",
+                        "barrio": "Palermo",
+                        "origenProgramacion": "NINGUNO",
+                        "cantidadIntervenciones": 20,
+                        "cantidadAfectadas": 20,
+                        "cantidadCanceladas": 0,
+                        "cantidadCompletadas": 15,
+                        "camionesDistintos": 3,
                         "fecha_snapshot": datetime(2026, 9, 21, 10, 30),
                     }
                 ]
@@ -259,13 +264,13 @@ def client(monkeypatch):
             "/analytics/residuos",
             [
                 {
-                    "zona": "Norte",
-                    "tipoAlerta": "Contenedor lleno",
-                    "prioridad": "Alta",
-                    "rangoNivelLlenado": "80-100%",
+                    "zona": "Palermo",
+                    "tipoAlerta": "RECLAMO",
+                    "prioridad": "AFECTADA",
+                    "rangoNivelLlenado": "EVENTO_CLIMATICO",
                     "cantidadAlertas": 20,
                     "cantidadResueltas": 15,
-                    "tiempoPromResolucion": 35.5,
+                    "tiempoPromResolucion": None,
                     "fecha_snapshot": "2026-09-21T10:30:00",
                 }
             ],
