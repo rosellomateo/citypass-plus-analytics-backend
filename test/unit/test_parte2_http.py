@@ -91,7 +91,10 @@ def test_missing_unavailable_metrics_return_empty_without_fabricating_zeroes(set
     assert response.status_code == 200
     assert response.json()["datos"] == []
     assert response.json()["fecha_snapshot"] is None
-    assert all(call.args[0].endswith(".json") for call in storage.download_blob.call_args_list)
+    assert response.json()["resumen_gold"] == []
+    # eda no tiene tabla gold; culture/mobility/waste leen la suya para el caso 5.
+    if area == "eda":
+        assert all(call.args[0].endswith(".json") for call in storage.download_blob.call_args_list)
 
 
 @pytest.mark.parametrize(
