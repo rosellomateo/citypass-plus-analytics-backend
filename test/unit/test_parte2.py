@@ -1,6 +1,7 @@
 from datetime import date
 
 import polars as pl
+import pytest
 
 from app.routers import rout_parte2
 
@@ -54,6 +55,66 @@ def leer(monkeypatch, rows):
 
 def by_id(report):
     return {item.id: item for item in report.datos}
+
+
+def test_reclamos_caso2_suma_reclamos_del_ultimo_snapshot_y_conserva_casos_existentes(monkeypatch):
+    leer(
+        monkeypatch,
+        pl.DataFrame(
+            {
+                "fecha_snapshot": [date(2026, 11, 16), SNAP, SNAP, SNAP],
+                "causaTipo": ["EMERGENCIA", "EMERGENCIA", None, "RESERVA"],
+                "afectaOtrosModulos": [True, True, True, False],
+                "row_count": [100, 2, 3, 10],
+            }
+        ),
+    )
+    report = rout_parte2.calcular_desde_resumen("claims", None)
+    datos = by_id(report)
+    assert report.fecha_snapshot == SNAP
+    assert datos["c2"].valor == 5  # suma entidades, no las dos filas agregadas
+    assert datos["c5"].valor == 2
+    assert datos["c6"].valor == 10
+
+
+@pytest.mark.parametrize("con_columna_causa", [True, False])
+def test_reclamos_caso2_no_depende_de_la_causa_del_reclamo(monkeypatch, con_columna_causa):
+    rows = pl.DataFrame(
+        {
+            "fecha_snapshot": [SNAP, SNAP],
+            "afectaOtrosModulos": [True, False],
+            "row_count": [4, 9],
+        }
+    )
+    if con_columna_causa:
+        rows = rows.with_columns(pl.lit(None, dtype=pl.String).alias("causaTipo"))
+    leer(monkeypatch, rows)
+    report = rout_parte2.calcular_desde_resumen("claims", None)
+    assert report.fecha_snapshot == SNAP
+    assert {item.id: item.valor for item in report.datos} == {"c2": 4}
+
+
+def test_reclamos_caso2_publica_cero_si_no_hay_reclamos_afectados(monkeypatch):
+    leer(
+        monkeypatch,
+        pl.DataFrame({"afectaOtrosModulos": [False, False], "row_count": [2, 5]}),
+    )
+    assert by_id(rout_parte2.calcular_desde_resumen("claims", None))["c2"].valor == 0
+
+
+@pytest.mark.parametrize(
+    "columns",
+    [
+        {"row_count": [2, 5]},
+        {"afectaOtrosModulos": [True, None], "row_count": [2, 5]},
+        {"afectaOtrosModulos": ["true", "false"], "row_count": [2, 5]},
+        {"afectaOtrosModulos": [True, False], "row_count": [None, 5]},
+        {"afectaOtrosModulos": [True, False], "row_count": ["2", "5"]},
+    ],
+)
+def test_reclamos_caso2_no_inventa_ceros_con_datos_desconocidos(monkeypatch, columns):
+    leer(monkeypatch, pl.DataFrame(columns))
+    assert "c2" not in by_id(rout_parte2.calcular_desde_resumen("claims", None))
 
 
 def test_emergencias_caso5_cuenta_bicis_y_publica_el_tiempo_de_resolucion(monkeypatch):

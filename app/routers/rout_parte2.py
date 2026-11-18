@@ -122,6 +122,21 @@ def _sumar(df: pl.DataFrame, columna: str) -> float:
     return df[columna].sum() if columna in df.columns else 0
 
 
+def _caso2(area: Area, df: pl.DataFrame) -> list[Indicador]:
+    """Reclamos que Gold vinculó con al menos otro módulo, sin contar sus eventos."""
+    if area != "claims" or not {"afectaOtrosModulos", "row_count"}.issubset(df.columns):
+        return []
+    if (
+        df.schema["afectaOtrosModulos"] != pl.Boolean
+        or df["afectaOtrosModulos"].null_count()
+        or not df.schema["row_count"].is_numeric()
+        or df["row_count"].null_count()
+    ):
+        return []
+    afectados = df.filter(pl.col("afectaOtrosModulos"))
+    return [Indicador(id="c2", valor=afectados["row_count"].sum())]
+
+
 def _caso1(area: Area, df: pl.DataFrame) -> list[Indicador]:
     """Caso 1 (evento climático) en los módulos que no lo leen de AVAILABLE_CAUSES.
     Cada módulo usa la columna gold que describe su propio impacto."""
@@ -310,17 +325,27 @@ def calcular_desde_resumen(area: Area, storage: AzureBlobStorage) -> Indicadores
             return IndicadoresParteDos()
         raise
 
-    if not {"causaTipo", count_column}.issubset(df.columns):
+    if count_column not in df.columns:
         return IndicadoresParteDos()
 
     snapshot = df["fecha_snapshot"].max() if "fecha_snapshot" in df.columns else None
     if snapshot is not None:
         df = df.filter(pl.col("fecha_snapshot") == snapshot)
 
-    if not df["causaTipo"].is_not_null().any() or df[count_column].null_count():
-        return IndicadoresParteDos()
+    snapshot_date = date.fromisoformat(str(snapshot)[:10]) if snapshot is not None else None
+    # El reclamo ciudadano puede no tener causa externa y aun así afectar a
+    # otros módulos. c2 usa la bandera de Gold, independientemente de causaTipo.
+    results = _caso2(area, df)
+    if (
+        "causaTipo" not in df.columns
+        or not df["causaTipo"].is_not_null().any()
+        or df[count_column].null_count()
+    ):
+        return IndicadoresParteDos(
+            fecha_snapshot=snapshot_date if results else None,
+            datos=results,
+        )
 
-    results = []
     for metric_id, cause in causes.items():
         matching = df.filter(pl.col("causaTipo") == cause)
         if area == "emergencies" and metric_id == "c1":
@@ -345,7 +370,6 @@ def calcular_desde_resumen(area: Area, storage: AzureBlobStorage) -> Indicadores
     results.extend(_caso1(area, df))
     results.extend(_caso5(area, df, count_column))
 
-    snapshot_date = date.fromisoformat(str(snapshot)[:10]) if snapshot is not None else None
     return IndicadoresParteDos(
         fecha_snapshot=snapshot_date,
         datos=results,

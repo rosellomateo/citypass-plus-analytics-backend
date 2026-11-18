@@ -1,8 +1,11 @@
 import json
 from contextlib import nullcontext
+from datetime import date
+from io import BytesIO
 from unittest.mock import Mock
 
 import jwt
+import polars as pl
 import pytest
 from azure.core.exceptions import AzureError, ResourceNotFoundError
 from fastapi.testclient import TestClient
@@ -136,3 +139,30 @@ def test_main_registers_part2_in_openapi(setup):
     client, _, _, _ = setup
     paths = client.get("/openapi.json").json()["paths"]
     assert "/analytics/{area}/parte2" in paths
+
+
+def test_reclamos_caso2_desde_parquet_llega_al_portal_y_al_embed(setup):
+    from app.services import embed_service
+
+    client, storage, _, _ = setup
+    parquet = BytesIO()
+    pl.DataFrame(
+        {
+            "fecha_snapshot": [date(2026, 11, 18)] * 2,
+            "causaTipo": [None, None],
+            "afectaOtrosModulos": [True, False],
+            "row_count": [3, 7],
+        }
+    ).write_parquet(parquet)
+
+    def download(path):
+        if path == "Reclamos/reclamos_resumen.parquet":
+            return parquet.getvalue()
+        raise missing_blob()
+
+    storage.download_blob.side_effect = download
+    response = client.get("/analytics/claims/parte2", headers=HEADERS)
+    assert response.status_code == 200
+    assert response.json()["fecha_snapshot"] == "2026-11-18"
+    assert [(item["id"], item["valor"]) for item in response.json()["datos"]] == [("c2", 3)]
+    assert embed_service.cargar_parte2("reclamos") == response.json()
