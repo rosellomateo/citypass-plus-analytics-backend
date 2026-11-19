@@ -56,15 +56,18 @@ class FakeParquetRepository:
                     }
                 ]
             ),
+            # viajes_resumen con la estructura nueva (una fila por causa).
             "Movilidad Urbana/viajes_resumen.parquet": pl.DataFrame(
                 [
                     {
-                        "fechaInicio": datetime(2026, 9, 21, 10, 30),
-                        "estacionInicio": "Estación Central",
-                        "duracionViaje": "15 minutos",
-                        "cantidadViajes": 10,
-                        "duracionTotalViajes": 150.0,
-                        "promDuracion": 15.0,
+                        "causaTipo": "EVENTO_CLIMATICO",
+                        "cantidadAfectaciones": 17,
+                        "estacionesAfectadasDistintas": 13,
+                        "cantidadBloqueadas": 14,
+                        "estacionesBloqueadasDistintas": 12,
+                        "cantidadPreventivas": 0,
+                        "cantidadRestauradas": 10,
+                        "cantidadViajesInterrumpidos": 1,
                         "fecha_snapshot": datetime(2026, 9, 21, 12, 0),
                     }
                 ]
@@ -230,12 +233,14 @@ def client(monkeypatch):
             "/analytics/movilidad-urbana",
             [
                 {
-                    "fechaInicio": "2026-09-21T10:30:00",
-                    "estacionInicio": "Estación Central",
-                    "duracionViaje": "15 minutos",
-                    "cantidadViajes": 10,
-                    "duracionTotalViajes": 150.0,
-                    "promDuracion": 15.0,
+                    "causaTipo": "EVENTO_CLIMATICO",
+                    "cantidadAfectaciones": 17,
+                    "estacionesAfectadasDistintas": 13,
+                    "cantidadBloqueadas": 14,
+                    "estacionesBloqueadasDistintas": 12,
+                    "cantidadPreventivas": 0,
+                    "cantidadRestauradas": 10,
+                    "cantidadViajesInterrumpidos": 1,
                     "fecha_snapshot": "2026-09-21T12:00:00",
                 }
             ],

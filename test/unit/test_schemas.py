@@ -46,22 +46,30 @@ def test_validates_espacios_cultura_response() -> None:
 
 def test_validates_movilidad_response() -> None:
     movilidad = Movilidad(
-        fechaInicio=datetime(2026, 9, 21, 10, 30),
-        estacionInicio="Estación Central",
-        duracionViaje="15 minutos",
-        cantidadViajes=10,
-        duracionTotalViajes=150.0,
-        promDuracion=15.0,
+        causaTipo="RECLAMO",
+        cantidadAfectaciones=21,
+        estacionesAfectadasDistintas=20,
+        cantidadBloqueadas=6,
+        estacionesBloqueadasDistintas=6,
+        cantidadPreventivas=0,
+        cantidadRestauradas=12,
+        cantidadViajesInterrumpidos=0,
         fecha_snapshot=datetime(2026, 9, 21, 12, 0),
     )
 
-    assert movilidad.fechaInicio == datetime(2026, 9, 21, 10, 30)
-    assert movilidad.estacionInicio == "Estación Central"
-    assert movilidad.duracionViaje == "15 minutos"
-    assert movilidad.cantidadViajes == 10
-    assert movilidad.duracionTotalViajes == 150.0
-    assert movilidad.promDuracion == 15.0
+    assert movilidad.causaTipo == "RECLAMO"
+    assert movilidad.cantidadAfectaciones == 21
+    assert movilidad.estacionesAfectadasDistintas == 20
+    assert movilidad.cantidadBloqueadas == 6
+    assert movilidad.cantidadRestauradas == 12
     assert movilidad.fecha_snapshot == datetime(2026, 9, 21, 12, 0)
+
+
+def test_movilidad_conteos_faltantes_valen_cero() -> None:
+    movilidad = Movilidad(causaTipo="NORMAL", cantidadViajesInterrumpidos=36)
+
+    assert movilidad.cantidadAfectaciones == 0
+    assert movilidad.cantidadViajesInterrumpidos == 36
 
 
 def test_validates_reclamos_response() -> None:
