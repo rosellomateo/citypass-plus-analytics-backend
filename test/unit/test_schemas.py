@@ -159,3 +159,27 @@ def test_validates_seguridad_emergencias_response() -> None:
 def test_rejects_responses_without_required_fields(schema: type[BaseModel]) -> None:
     with pytest.raises(ValidationError):
         schema.model_validate({})
+
+
+def test_reclamo_expone_vinculo_con_emergencia_en_bici() -> None:
+    """El front arma la tarjeta del caso 5 con este campo: no se puede descartar."""
+    base = {
+        "barrio": "Palermo",
+        "categoria": "BACHES",
+        "prioridad": "ALTA",
+        "origenClasificacion": "MODELO",
+        "estado_actual": "ABIERTO",
+        "causaTipo": "EMERGENCIA",
+        "row_count": 2,
+        "tiempo_prom_hasta_estado_actual": 3.0,
+        "fecha_snapshot": None,
+    }
+
+    assert (
+        Reclamo.model_validate({**base, "vinculadoEmergenciaBici": True}).model_dump()[
+            "vinculadoEmergenciaBici"
+        ]
+        is True
+    )
+    # Gold anterior al 17/11, sin la columna: sigue validando.
+    assert Reclamo.model_validate(base).vinculadoEmergenciaBici is None

@@ -25,6 +25,7 @@ def test_reclamos_parquet_roundtrip(fecha, dtype):
         "origenClasificacion": pl.String,
         "estado_actual": pl.String,
         "causaTipo": pl.String,
+        "vinculadoEmergenciaBici": pl.Boolean,
         "row_count": pl.Int64,
         "tiempo_prom_hasta_estado_actual": pl.Float64,
         "fecha_snapshot": dtype,
@@ -36,6 +37,7 @@ def test_reclamos_parquet_roundtrip(fecha, dtype):
         "origenClasificacion": "Manual",
         "estado_actual": "Resuelto",
         "causaTipo": "Falla eléctrica",
+        "vinculadoEmergenciaBici": True,
         "row_count": 3_000_000_000,
         "tiempo_prom_hasta_estado_actual": 24.5,
         "fecha_snapshot": fecha,
@@ -62,6 +64,7 @@ def test_reclamos_parquet_roundtrip(fecha, dtype):
     assert result.datos[1].model_dump() == dict.fromkeys(schema)
     payload = result.model_dump(mode="json")
     assert payload["datos"][0]["causaTipo"] == "Falla eléctrica"
+    assert payload["datos"][0]["vinculadoEmergenciaBici"] is True
     assert payload["informe"] == report
     assert set(Reclamo.model_json_schema()["properties"]) == set(schema)
     storage.download_blob.assert_called_once_with("Reclamos/reclamos_resumen.parquet")
