@@ -16,6 +16,7 @@ from app.core.security.dependencies import requerir_admin
 from app.repositories.analisis_repository import AzureJsonRepository
 from app.repositories.parquet_repository import AzureParquetRepository
 from app.schemas.sch_respuestas import InformeAnalisis
+from app.services.movilidad_service import leer_resumen_movilidad
 from app.services.parte2_events import (
     ContextImpact,
     Part2Events,
@@ -190,6 +191,47 @@ def _caso1(area: Area, df: pl.DataFrame) -> list[Indicador]:
     return []
 
 
+def _casos_movilidad(area: Area, df: pl.DataFrame) -> list[Indicador]:
+    """Casos 2, 3, 4 y 6 de Movilidad desde el resumen por causa. Las
+    tarjetas hablan de estaciones: el valor son estaciones distintas y el
+    detalle la cantidad de afectaciones (una estacion puede afectarse varias
+    veces). El caso 3 cuenta las afectaciones anunciadas antes de empezar."""
+    if area != "mobility":
+        return []
+    columnas = {"estacionesAfectadasDistintas", "cantidadAfectaciones", "cantidadPreventivas"}
+    if not columnas.issubset(df.columns):
+        return []
+
+    def estaciones(metric_id: str, causa: str) -> Indicador:
+        filas = df.filter(pl.col("causaTipo") == causa)
+        return Indicador(
+            id=metric_id,
+            valor=_sumar(filas, "estacionesAfectadasDistintas"),
+            detalle=[
+                DetalleIndicador(
+                    etiqueta="Afectaciones registradas", valor=_sumar(filas, "cantidadAfectaciones")
+                )
+            ],
+        )
+
+    evento = df.filter(pl.col("causaTipo") == "EVENTO_PUBLICO")
+    return [
+        estaciones("c2", "RECLAMO"),
+        Indicador(
+            id="c3",
+            valor=_sumar(evento, "cantidadPreventivas"),
+            detalle=[
+                DetalleIndicador(
+                    etiqueta="Afectaciones por eventos masivos",
+                    valor=_sumar(evento, "cantidadAfectaciones"),
+                )
+            ],
+        ),
+        estaciones("c4", "INCIDENTE_VIAL"),
+        estaciones("c6", "RESERVA"),
+    ]
+
+
 def _caso5(area: Area, df: pl.DataFrame, count_column: str) -> list[Indicador]:
     """Caso 5 (CU-01): cada módulo cuenta solo con sus propios eventos, por
     el causaTipo que publica (no se cruzan módulos). Los nombres de las
@@ -324,12 +366,18 @@ def calcular_desde_resumen(area: Area, storage: AzureBlobStorage) -> Indicadores
         return IndicadoresParteDos()
 
     path, count_column, causes = AVAILABLE_CAUSES[area]
-    try:
-        df = AzureParquetRepository(storage).read(path)
-    except ResourceNotFoundError as exc:
-        if exc.error_code == "BlobNotFound":
+    if area == "mobility":
+        # viajes_resumen (estructura nueva) o movilidad_resumen, el mas reciente.
+        df = leer_resumen_movilidad(AzureParquetRepository(storage))
+        if df.is_empty():
             return IndicadoresParteDos()
-        raise
+    else:
+        try:
+            df = AzureParquetRepository(storage).read(path)
+        except ResourceNotFoundError as exc:
+            if exc.error_code == "BlobNotFound":
+                return IndicadoresParteDos()
+            raise
 
     if area == "waste":
         # Gold de Residuos renombro causaTipo -> causaProgramacion (18/11).
@@ -378,6 +426,7 @@ def calcular_desde_resumen(area: Area, storage: AzureBlobStorage) -> Indicadores
             results.append(Indicador(id=metric_id, valor=matching[count_column].sum()))
 
     results.extend(_caso1(area, df))
+    results.extend(_casos_movilidad(area, df))
     results.extend(_caso5(area, df, count_column))
 
     return IndicadoresParteDos(
